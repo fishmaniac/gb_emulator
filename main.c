@@ -1,10 +1,17 @@
-#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <stdlib.h>
 #include <string.h>
+#include <stdlib.h>
 #include "cpu.h"
+#ifdef TESTS
+#include "tests.h"
+
+void init(void)  __attribute__((constructor));
+void init(void) {
+	run_all_tests();
+}
+#endif
 
 #define RAM_SIZE 512
 
@@ -23,7 +30,7 @@ void addMalloc(void *var) {
 
 	if (mallocMap == NULL) {
 		mallocMap = node;
-	} 
+	}
 	else {
 		MallocMap *current = mallocMap;
 
@@ -50,58 +57,8 @@ void freeMalloc() {
 	mallocMap = NULL;
 }
 
-char *print_binary(int val) {
-	printf("reg: %d\t", val);
-
-	int temp = val;
-	int r = floor(log2(val) + 1);
-	char *num = (char *) malloc(r * sizeof(char));
-
-	// just free this manually
-	addMalloc(num);
-
-	for (int i = 0; i < r; i++) {
-		int n = temp % 2;
-		temp /= 2;
-
-		printf("i: %d, n: %d\n", i, n);
-		num[i] = n + '0';
-	}
-
-	num[r] = '\0';
-
-
-	printf("binary: %s\n", num);
-	return num;
-}
-
-
-#ifdef TESTS
-
-#define FUNCTION_NAME __func__
-void test_log(bool test, char *func) {
-	if (test) {
-		printf("TEST\t%s\tPASSED --- ✅\n", func);
-	}
-	else {
-		printf("TEST\t%s\tFAILED --- ❌\n", func);
-	}
-}
-
-void run_all_tests() {
-	printf("TESTS BEGIN: %d\n", TESTS);
-	printf("\nPRINT BINARY TESTS BEGIN\n\n");
-	char* n = print_binary(60234);
-	printf("printbin: %s\n", n);
-	test_log(1, FUNCTION_NAME);
-
-	test_log(1, FUNCTION_NAME);
-	test_log(0, FUNCTION_NAME);
-
-}
-#endif
-
 int main(int argc, char *argv[]) {
+	printf("main\n");
 	Register reg;
 
 	set_reg_BC(&reg, 65534);
@@ -114,10 +71,6 @@ int main(int argc, char *argv[]) {
 
 	// print_binary(get_reg_BC(&reg));
 	// print_binary(get_reg_AF(&reg));
-	#ifdef TESTS
-run_all_tests();
-	#endif
-	freeMalloc();
 
 	return 0;
 }

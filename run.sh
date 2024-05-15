@@ -1,3 +1,3 @@
-gcc main.c cpu.c -Wall -g -Og -lm -DTESTS -o gbc_emu
-./gbc_emu
-rm gbc_emu
+./build.sh
+./build/gbc_emulator
+rm ./build/gbc_emulator

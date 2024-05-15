@@ -8,7 +8,8 @@ typedef struct FlagRegister_t {
 	bool carry;
 } FlagRegister;
 
-uint8_t flag_to_byte(FlagRegister *flags);
+uint8_t get_reg_F(FlagRegister *flags);
+void set_reg_F(FlagRegister *flags, uint8_t val);
 
 typedef struct Register_t {
 	uint8_t a;

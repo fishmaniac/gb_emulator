@@ -1,0 +1,17 @@
+cmake_minimum_required(VERSION 3.20)
+
+project(gbc_emulator C)
+
+set(C_STANDARD 23)
+set(C_STANDARD_REQUIRED ON)
+
+add_compile_options(-Wall -Wextra -g -Og -lm -DTESTS)
+#[[ add_compile_options(-Wpedantic -Werror) ]]
+
+add_executable(gbc_emulator
+	main.c
+	cpu.c
+	tests.c
+)
+
+target_link_libraries(gbc_emulator m)
