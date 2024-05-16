@@ -59,18 +59,16 @@ void freeMalloc() {
 
 int main(int argc, char *argv[]) {
 	printf("main\n");
-	Register reg;
 
-	set_reg_BC(&reg, 65534);
-	/* set_reg_AF(&reg, 0b0000111100001111); */
-	reg.a = 0b11111111;
-	reg.f.zero = 0;
-	reg.f.subtract = 1;
-	reg.f.half_carry = 0;
-	reg.f.carry = 1;
-
-	// print_binary(get_reg_BC(&reg));
-	// print_binary(get_reg_AF(&reg));
+	CPU cpu;
+	// Should carry
+	cpu.reg.a = 240;
+	cpu.reg.b = 30;
+	// Should half carry
+	// cpu.reg.a = 0b10001111;
+	// cpu.reg.b = 1;
+	execute_opcode(&cpu, ADC, B);
+	printf("A: %d\tCarry: %d\tHalf Carry: %d\n", cpu.reg.a, cpu.reg.f.carry, cpu.reg.f.half_carry);
 
 	return 0;
 }

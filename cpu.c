@@ -27,7 +27,7 @@ uint16_t get_reg_AF(Register *reg) {
 
 void set_reg_AF(Register *reg, uint16_t val) {
 	reg->a = (uint8_t) ((val & 0xFF00) >> 8);
-	set_reg_F(&reg->f, (uint8_t) (val & 0xFF));
+	set_reg_F(&reg->f, (uint8_t) (val & UINT8_MAX));
 }
 
 uint16_t get_reg_BC(Register *reg) {
@@ -36,7 +36,7 @@ uint16_t get_reg_BC(Register *reg) {
 
 void set_reg_BC(Register *reg, uint16_t val) {
 	reg->b = (uint8_t) ((val & 0xFF00) >> 8);
-	reg->c = (uint8_t) (val & 0xFF);
+	reg->c = (uint8_t) (val & UINT8_MAX);
 }
 
 uint16_t get_reg_DE(Register *reg) {
@@ -45,7 +45,7 @@ uint16_t get_reg_DE(Register *reg) {
 
 void set_reg_DE(Register *reg, uint16_t val) {
 	reg->d = (uint8_t) ((val & 0xFF00) >> 8);
-	reg->e = (uint8_t) (val & 0xFF);
+	reg->e = (uint8_t) (val & UINT8_MAX);
 }
 
 uint16_t get_reg_HL(Register *reg) {
@@ -54,5 +54,85 @@ uint16_t get_reg_HL(Register *reg) {
 
 void set_reg_HL(Register *reg, uint16_t val) {
 	reg->h = (uint8_t) ((val & 0xFF00) >> 8);
-	reg->l = (uint8_t) (val & 0xFF);
+	reg->l = (uint8_t) (val & UINT8_MAX);
+}
+
+// 8 bit add to A register
+uint8_t add(CPU *cpu, uint8_t val) {
+	cpu->reg.f.zero = val == 0;
+	cpu->reg.f.subtract = false;
+	cpu->reg.f.carry = val + cpu->reg.a > UINT8_MAX;
+	cpu->reg.f.half_carry = (cpu->reg.a & UINT4_MAX) + (val & UINT4_MAX) > UINT4_MAX;
+	return cpu->reg.a + val;
+}
+
+// 8 bit add to HL register
+uint16_t addhl(CPU *cpu, uint8_t val) {
+	cpu->reg.f.zero = val == 0;
+	cpu->reg.f.subtract = false;
+	cpu->reg.f.carry = val + get_reg_HL(&cpu->reg) > UINT16_MAX;
+	// Unsure if half carry is correct
+	cpu->reg.f.half_carry = (get_reg_HL(&cpu->reg) & UINT4_MAX) + (val & UINT4_MAX) > UINT4_MAX;
+	return get_reg_HL(&cpu->reg) + val;
+}
+
+// 8 bit add to A register with carry
+uint8_t addc(CPU *cpu, uint8_t val) {
+	cpu->reg.f.zero = val == 0;
+	cpu->reg.f.subtract = false;
+	cpu->reg.f.carry = val + cpu->reg.a + cpu->reg.f.carry > UINT8_MAX;
+	// Unsure if half carry is correct
+	cpu->reg.f.half_carry = (cpu->reg.a & UINT4_MAX) + (val & UINT4_MAX) + cpu->reg.f.carry > UINT4_MAX;
+	return cpu->reg.a + val + cpu->reg.f.carry;
+}
+
+// Get 8 bit register
+// TODO get 16 bit register
+// TODO get flag register
+uint8_t *get_target(CPU *cpu, Target target) {
+	switch (target) {
+		case A:
+			return &cpu->reg.a;
+		case B:
+			return &cpu->reg.b;
+		case C:
+			return &cpu->reg.c;
+		case D:
+			return &cpu->reg.d;
+		case E:
+			return &cpu->reg.e;
+		case F:
+			// TODO
+			return NULL;
+		case G:
+			return &cpu->reg.g;
+		case H:
+			return &cpu->reg.h;
+		case L:
+			return &cpu->reg.l;
+		default:
+			return NULL;
+	}
+}
+
+void execute_opcode(CPU *cpu, Opcode opcode, Target target) {
+	uint8_t *target_reg = get_target(cpu, target);;
+	switch (opcode) {
+		// TODO implement 16 bit add
+		case ADD:
+			printf("ADD\n");
+			uint8_t v = add(cpu, *target_reg);
+			cpu->reg.a = v;
+			break;
+		case ADDHL:
+			printf("ADDHL\n");
+			uint16_t g = addhl(cpu, *target_reg);
+			set_reg_HL(&cpu->reg, g);
+			break;
+		case ADC:
+			printf("ADC\n");
+			uint8_t c = addc(cpu, *target_reg);
+			cpu->reg.a = c;
+			break;
+	}
 }
