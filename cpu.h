@@ -1,19 +1,23 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define UINT4_MAX 15 // 0xF
-#define UINT8_MAX 255 // 0xFF
-#define UINT16_MAX 65535 // 0xFFFF
+#define UINT4_MAX 15		// 0xF
+#undef UINT8_MAX
+#define UINT8_MAX 255		// 0xFF
+#define UINT12_MAX 4095		// 0xFFF
+#undef UINT16_MAX
+#define UINT16_MAX 65535	// 0xFFFF
+
 
 typedef struct FlagRegister_t {
-	bool zero;
-	bool subtract;
-	bool half_carry;
-	bool carry;
+	bool zero;		// Z
+	bool subtract;		// N
+	bool half_carry;	// H
+	bool carry;		// C
 } FlagRegister;
 
-uint8_t get_reg_F(FlagRegister *flags);
-void set_reg_F(FlagRegister *flags, uint8_t val);
+uint8_t get_reg_f(FlagRegister *flags);
+void set_reg_f(FlagRegister *flags, uint8_t val);
 
 typedef struct Register_t {
 	uint8_t a;
@@ -28,20 +32,20 @@ typedef struct Register_t {
 
 } Register;
 
-uint16_t get_reg_AF(Register *reg);
-void set_reg_AF(Register *reg, uint16_t val);
+uint16_t get_reg_af(Register *reg);
+void set_reg_af(Register *reg, uint16_t val);
 
-uint16_t get_reg_BC(Register *reg);
-void set_reg_BC(Register *reg, uint16_t val);
+uint16_t get_reg_bc(Register *reg);
+void set_reg_bc(Register *reg, uint16_t val);
 
-uint16_t get_reg_DE(Register *reg);
-void set_reg_DE(Register *reg, uint16_t val);
+uint16_t get_reg_de(Register *reg);
+void set_reg_de(Register *reg, uint16_t val);
 
-uint16_t get_reg_HL(Register *reg);
-void set_reg_HL(Register *reg, uint16_t val);
+uint16_t get_reg_hl(Register *reg);
+void set_reg_hl(Register *reg, uint16_t val);
 
-uint16_t get_reg_DF(Register *reg);
-void set_reg_DF(Register *reg, uint16_t val);
+uint16_t get_reg_df(Register *reg);
+void set_reg_df(Register *reg, uint16_t val);
 
 typedef enum {
 	ADD,
@@ -58,7 +62,7 @@ typedef enum {
 	F,
 	G,
 	H,
-	L
+	L,
 } Target;
 
 typedef struct CPU_t {

@@ -56,3 +56,4 @@ vgcore.*
 
 #CMake
 build
+compile_commands.json

@@ -1,2 +1,2 @@
 ./build.sh
-valgrind --leak-check=full ./build/gbc_emulator
+valgrind --leak-check=full ./build/gb_emulator

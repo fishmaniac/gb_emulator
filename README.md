@@ -1,1 +1,1 @@
-# gbc_emulator
+# gb_emulator

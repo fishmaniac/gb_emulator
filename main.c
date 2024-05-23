@@ -67,8 +67,15 @@ int main(int argc, char *argv[]) {
 	// Should half carry
 	// cpu.reg.a = 0b10001111;
 	// cpu.reg.b = 1;
-	execute_opcode(&cpu, ADC, B);
-	printf("A: %d\tCarry: %d\tHalf Carry: %d\n", cpu.reg.a, cpu.reg.f.carry, cpu.reg.f.half_carry);
+	execute_opcode(&cpu, ADD, B);
+	printf(
+		"A: %d\tZero: %d\tSubtract: %d\tCarry: %d\tHalf Carry: %d\n",
+		cpu.reg.a,
+		cpu.reg.f.zero,
+		cpu.reg.f.subtract,
+		cpu.reg.f.carry,
+		cpu.reg.f.half_carry
+	);
 
 	return 0;
 }

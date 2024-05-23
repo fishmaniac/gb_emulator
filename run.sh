@@ -1,3 +1,3 @@
 ./build.sh
-./build/gbc_emulator
-rm ./build/gbc_emulator
+./build/gb_emulator
+rm ./build/gb_emulator
