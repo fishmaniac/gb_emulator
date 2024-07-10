@@ -3,7 +3,9 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
+
 #include "cpu.h"
+
 #ifdef TESTS
 #include "tests.h"
 
@@ -12,8 +14,6 @@ void init(void) {
 	run_all_tests();
 }
 #endif
-
-#define RAM_SIZE 512
 
 typedef struct MallocMap_t {
 	void *var;
@@ -58,7 +58,11 @@ void freeMalloc() {
 }
 
 int main(int argc, char *argv[]) {
-	printf("main\n");
+	printf("-----------------------------------------------------------------------------------------------------------------------\n");
+	printf("main\targc: %d\n", argc);
+	for (int i = 0; i < argc; i++) {
+		printf("i: %d, argv[i]: %s\n", i, argv[i]);
+	}
 
 	CPU cpu;
 	// Should carry
@@ -67,7 +71,7 @@ int main(int argc, char *argv[]) {
 	// Should half carry
 	// cpu.reg.a = 0b10001111;
 	// cpu.reg.b = 1;
-	execute_opcode(&cpu, ADD, B);
+	execute_opcode(&cpu, ADD, B, 0, 0);
 	printf(
 		"A: %d\tZero: %d\tSubtract: %d\tCarry: %d\tHalf Carry: %d\n",
 		cpu.reg.a,

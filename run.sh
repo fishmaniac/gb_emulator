@@ -1,3 +1,4 @@
+#!/bin/bash
 ./build.sh
 ./build/gb_emulator
-rm ./build/gb_emulator
+rm -r build
