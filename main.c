@@ -64,22 +64,14 @@ int main(int argc, char *argv[]) {
 		printf("i: %d, argv[i]: %s\n", i, argv[i]);
 	}
 
+	// TODO: Load rom
 	CPU cpu;
-	// Should carry
-	cpu.reg.a = 240;
-	cpu.reg.b = 30;
-	// Should half carry
-	// cpu.reg.a = 0b10001111;
-	// cpu.reg.b = 1;
-	execute_opcode(&cpu, ADD, B, 0, 0);
-	printf(
-		"A: %d\tZero: %d\tSubtract: %d\tCarry: %d\tHalf Carry: %d\n",
-		cpu.reg.a,
-		cpu.reg.f.zero,
-		cpu.reg.f.subtract,
-		cpu.reg.f.carry,
-		cpu.reg.f.half_carry
-	);
+
+	// cpu.reg.pc = 0x0;
+	// while (cpu.reg.pc < 0x100) {
+	// 	uint8_t opcode = cpu.map.memory[cpu.reg.pc++];
+	// 	// TODO: cpu.execute_opcode(opcode);
+	// }
 
 	return 0;
 }

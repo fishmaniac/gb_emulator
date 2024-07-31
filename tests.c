@@ -19,26 +19,33 @@ char *strrev(char *s) {
 	return s;
 }
 char *print_binary(uint16_t val) {
-	int temp = val;
-	int r = floor(log2(val) + 1);
+	if (val == 0) {
+		// Malloc to free always
+		char *num = (char *) malloc(2 * sizeof(char));
+		num[0] = '0';
+		num[1] = '\0';
 
-	char *num = (char *) malloc(r * sizeof(char));
-	if (r == 0) {
-		return "0";
+		return num;
 	}
 
-	for (int i = 0; i < r; i++) {
+	int temp = val;
+	int bits = floor(log2(val) + 1);
+	char *num = (char *) malloc(bits * sizeof(char));
+
+	for (int i = 0; i < bits; i++) {
 		int n = temp % 2;
 		temp /= 2;
 
 		num[i] = n + '0';
 	}
-	num[r] = '\0';
+
+	num[bits] = '\0';
 	return strrev(num);
 }
 void test_log(bool test, char *func) {
-	int func_len_max = 50;
+	const int func_len_max = 50;
 	int func_len = strlen(func);
+
 	char* result = test 
 		? "TEST\t%s%sPASSED --- ✅" 
 		: "TEST\t%s%sFAILED --- ❌";
@@ -71,6 +78,56 @@ void test_log(bool test, char *func) {
 
 	free(str);
 }
+void run_print_binary_tests() {
+	char *v = print_binary(0);
+	test_log(
+		strcmp(v, "0") == 0,
+		"print_binary(0)"
+	);
+
+	free(v);
+
+	v = print_binary(15);
+	test_log(
+		strcmp(v, "1111") == 0,
+		"print_binary(15)"
+	);
+
+	free(v);
+
+	v = print_binary(543);
+	test_log(
+		strcmp(v, "1000011111") == 0,
+		"print_binary(543)"
+	);
+
+	free(v);
+
+	v = print_binary(9453);
+	test_log(
+		strcmp(v, "10010011101101") == 0,
+		"print_binary(9453)"
+	);
+
+	free(v);
+
+	v = print_binary(18968);
+	test_log(
+		strcmp(v, "100101000011000") == 0,
+		"print_binary(18968)"
+	);
+
+	free(v);
+
+	v = print_binary(65535);
+	test_log(
+		strcmp(v, "1111111111111111") == 0,
+		"print_binary(65535)"
+	);
+
+	free(v);
+}
+
 void run_register_set_get() {
 	Register test_reg;
 	int v;
@@ -139,49 +196,60 @@ void run_register_tests() {
 	run_register_set_get();
 	run_register_flag();
 }
-void run_print_binary_tests() {
-	char *v = print_binary(15);
+// Test load
+void run_instruction_ld() {
+	CPU cpu;
+	bool pass;
+	int expect = 15;
+
+	ld_r8_n8(&cpu, B, expect);
+	int val = cpu.reg.b;
+	pass = val == expect;
 	test_log(
-		strcmp(v, "1111") == 0,
-		"print_binary(15)"
+		pass,
+		"LD --- B, 15"
 	);
 
-	free(v);
-
-	v = print_binary(543);
+	ld_r8_r8(&cpu, H, B);
+	val = cpu.reg.h;
+	pass = val == expect;
 	test_log(
-		strcmp(v, "1000011111") == 0,
-		"print_binary(543)"
+		pass,
+		"LD --- H, B"
 	);
 
-	free(v);
-
-	v = print_binary(9453);
+	// Store B at addr
+	uint16_t addr = 2048;
+	set_reg_hl(&cpu.reg, addr);
+	ld_hl_n8(&cpu, cpu.reg.b);
+	uint8_t mem = read_memory(&cpu.map, addr);
+	pass = mem == expect;
 	test_log(
-		strcmp(v, "10010011101101") == 0,
-		"print_binary(9453)"
+		pass,
+		"LD --- HL, B"
 	);
 
-	free(v);
-
-	v = print_binary(18968);
+	// Load addr into D
+	ld_r8_hl(&cpu, D);
+	val = cpu.reg.d;
+	pass = val == expect;
 	test_log(
-		strcmp(v, "100101000011000") == 0,
-		"print_binary(18968)"
+		pass,
+		"LD --- D, HL"
 	);
 
-	free(v);
-
-	v = print_binary(65535);
+	set_reg_hl(&cpu.reg, 4096);
+	// Load D into HL
+	ld_hl_r8(&cpu, D);
+	val = read_memory(&cpu.map, 4096);
+	pass = val == expect;
 	test_log(
-		strcmp(v, "1111111111111111") == 0,
-		"print_binary(65535)"
+		pass,
+		"LD --- HL, D"
 	);
-
-	free(v);
 }
 // Test 8 bit add to A register with carry
-void run_opcode_adc() {
+void run_instruction_adc() {
 	CPU cpu;
 	bool pass;
 
@@ -203,8 +271,8 @@ void run_opcode_adc() {
 	 */	
 	cpu.reg.a = 0b11110000;
 	cpu.reg.b = 0b00011110;
-
-	execute_opcode(&cpu, ADC, B, 0, 0);
+	uint8_t *_8 = get_target_reg_8(&cpu, B);
+	adc(&cpu, *_8);
 
 	pass = cpu.reg.a == 15
 		&& cpu.reg.f.zero == false
@@ -230,7 +298,7 @@ void run_opcode_adc() {
 	 */
 	cpu.reg.a = 0b10001111;
 	cpu.reg.b = 0b00000001;
-	execute_opcode(&cpu, ADC, B, 0, 0);
+	adc(&cpu, cpu.reg.b);
 	pass = cpu.reg.a == 0b10010000
 		&& cpu.reg.f.zero == false
 		&& cpu.reg.f.subtract == false
@@ -242,7 +310,7 @@ void run_opcode_adc() {
 	);
 }
 // Test 8 bit add to A register
-void run_opcode_add() {
+void run_instruction_add() {
 	CPU cpu;
 	bool pass;
 
@@ -264,8 +332,7 @@ void run_opcode_add() {
 	 */
 	cpu.reg.a = 0b11110000;
 	cpu.reg.b = 0b00011110;
-
-	execute_opcode(&cpu, ADD, B, 0, 0);
+	add_r8(&cpu, B);
 
 	pass = cpu.reg.a == 0b00001110
 		&& cpu.reg.f.zero == false
@@ -274,7 +341,7 @@ void run_opcode_add() {
 		&& cpu.reg.f.half_carry == false;
 	test_log(
 		pass,
-		"ADD --- 240 + 30 == 14"
+		"ADD --- 240 + 30 == 14 (overflow)"
 	);
 
 	/*	0b10001111 == 143
@@ -291,7 +358,7 @@ void run_opcode_add() {
 	cpu.reg.a = 0b10001111;
 	cpu.reg.b = 0b00000001;
 
-	execute_opcode(&cpu, ADD, B, 0, 0);
+	add_r8(&cpu, B);
 
 	pass = cpu.reg.a == 0b10010000
 		&& cpu.reg.f.zero == false
@@ -303,11 +370,11 @@ void run_opcode_add() {
 		"ADD --- 143 + 1 == 144"
 	);
 }
-void run_opcode_addhl() {
+void run_instruction_addhl() {
 	CPU cpu;
 	bool pass;
 
-	execute_opcode(&cpu, ADDHL, B, 0, 0);
+	addhl(&cpu, cpu.reg.b);
 
 	pass = false;
 
@@ -316,11 +383,9 @@ void run_opcode_addhl() {
 		"ADDHL --- "
 	);
 }
-void run_opcode_addsp() {
+void run_instruction_addsp() {
 	CPU cpu;
 	bool pass;
-
-	execute_opcode(&cpu, ADDSP, B, 0, 0);
 
 	pass = false;
 
@@ -329,11 +394,9 @@ void run_opcode_addsp() {
 		"ADDSP --- "
 	);
 }
-void run_opcode_and() {
+void run_instruction_and() {
 	CPU cpu;
 	bool pass;
-
-	execute_opcode(&cpu, AND, B, 3, 1);
 
 	pass = false;
 
@@ -342,11 +405,20 @@ void run_opcode_and() {
 		"AND --- "
 	);
 }
-void run_opcode_bit() {
+void run_instruction_andhl() {
 	CPU cpu;
 	bool pass;
 
-	execute_opcode(&cpu, BIT, A, 5, 0);
+	pass = false;
+
+	test_log(
+		pass,
+		"ANDHL --- "
+	);
+}
+void run_instruction_bit() {
+	CPU cpu;
+	bool pass;
 
 	pass = false;
 
@@ -355,11 +427,9 @@ void run_opcode_bit() {
 		"BIT --- "
 	);
 }
-void run_opcode_call() {
+void run_instruction_call() {
 	CPU cpu;
 	bool pass;
-
-	execute_opcode(&cpu, CALL, NONE, 0, 0xFFF);
 
 	pass = false;
 
@@ -368,11 +438,9 @@ void run_opcode_call() {
 		"CALL --- "
 	);
 }
-void run_opcode_di() {
+void run_instruction_di() {
 	CPU cpu;
 	bool pass;
-
-	execute_opcode(&cpu, DI, NONE, 0, 0xFFF);
 
 	pass = false;
 
@@ -381,11 +449,9 @@ void run_opcode_di() {
 		"DI --- "
 	);
 }
-void run_opcode_ei() {
+void run_instruction_ei() {
 	CPU cpu;
 	bool pass;
-
-	execute_opcode(&cpu, EI, NONE, 0, 0xFFF);
 
 	pass = false;
 
@@ -394,16 +460,18 @@ void run_opcode_ei() {
 		"EI --- "
 	);
 }
-void run_opcode_tests() {
-	run_opcode_add();
-	run_opcode_adc();
-	run_opcode_addhl();
-	run_opcode_addsp();
-	run_opcode_and();
-	run_opcode_bit();
-	run_opcode_call();
-	run_opcode_di();
-	run_opcode_ei();
+void run_instruction_tests() {
+	run_instruction_ld();
+	run_instruction_add();
+	run_instruction_adc();
+	run_instruction_addhl();
+	run_instruction_addsp();
+	run_instruction_and();
+	run_instruction_andhl();
+	run_instruction_bit();
+	run_instruction_call();
+	run_instruction_di();
+	run_instruction_ei();
 }
 void run_memory_tests() {
 	CPU cpu;
@@ -415,7 +483,7 @@ void run_memory_tests() {
 	for (int i = 0; i < MEMORY_SIZE; i++) {
 		uint8_t expect = cpu.reg.a + cpu.reg.a;
 
-		execute_opcode(&cpu, ADD, A, -1, -1);
+		add_r8(&cpu, A);
 		write_memory(&cpu.map, i, cpu.reg.a);
 		pass = read_memory(&cpu.map, i) == expect;
 
@@ -433,17 +501,87 @@ void run_memory_tests() {
 	);
 	free(str);
 }
+void run_stack_tests() {
+	CPU cpu;
+
+	cpu.reg.sp = 255;
+/* 	push_stack(CPU *cpu, Target_16 target); */
+	test_log(
+		false,
+		"Stack Test --- "
+	);
+}
+// 16 bit reg is stored as little endian
+void run_reg_target_tests() {
+	{
+		CPU cpu;
+		uint16_t *_16 = get_target_reg_16(&cpu, BC);
+
+		*_16 = 0b1010111111100111;
+
+		uint8_t b = cpu.reg.b;
+		uint8_t c = cpu.reg.c;
+
+		bool pass = b == 0b11100111
+			&& c == 0b10101111;
+
+		printf("b: %b\tc: %b\n", b, c);
+
+		test_log(
+			pass,
+			"Reg Target Test --- bc"
+		);
+	}
+	{
+		CPU cpu;
+		uint16_t *_16 = get_target_reg_16(&cpu, DE);
+
+		*_16 = 0b1010111111100111;
+
+		uint8_t d = cpu.reg.d;
+		uint8_t e = cpu.reg.e;
+
+		bool pass = d == 0b11100111
+			&& e == 0b10101111;
+
+		test_log(
+			pass,
+			"Reg Target Test --- de"
+		);
+	}
+	{
+		CPU cpu;
+		uint16_t *_16 = get_target_reg_16(&cpu, HL);
+
+		*_16 = 0b1010111111100111;
+
+		uint8_t h = cpu.reg.h;
+		uint8_t l = cpu.reg.l;
+
+		bool pass = h == 0b11100111
+			&& l == 0b10101111;
+
+		test_log(
+			pass,
+			"Reg Target Test --- hl"
+		);
+	}
+}
 void run_all_tests() {
 	printf("-----------------------------------------------------------------------------------------------------------------------\n");
 	printf("TESTS BEGIN: %d\n", TESTS);
-	printf("Register Tests:\n");
-	run_register_tests();
 	printf("Print Binary Tests:\n");
 	run_print_binary_tests();
-	printf("Opcode Tests:\n");
-	run_opcode_tests();
+	printf("Reg Target Tests:\n");
+	run_reg_target_tests();
+	printf("Register Tests:\n");
+	run_register_tests();
+	printf("Instruction Tests:\n");
+	run_instruction_tests();
 	printf("Memory Tests:\n");
 	run_memory_tests();
+	printf("Stack Tests:\n");
+	run_stack_tests();
 }
 
 #endif
