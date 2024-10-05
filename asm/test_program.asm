@@ -1,4 +1,8 @@
+SECTION "header placeholder", ROM0[$0100]
+	nop
+	jp main
+	ds 76, $00
 SECTION "Test program", ROM0
 main:
-	ld a, 240
-	ld b, 30
+	add a, b
+	halt

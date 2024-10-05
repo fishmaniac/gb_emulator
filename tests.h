@@ -20,7 +20,7 @@ void run_flag_register_permutations();
 void run_register_flag();
 void run_register_tests();
 
-void run_instruction_ld();
+// void run_instruction_ld();
 void run_instruction_adc();
 void run_instruction_add();
 void run_instruction_addhl();
@@ -35,6 +35,8 @@ void run_instruction_tests();
 void run_stack_tests();
 
 void run_memory_tests();
+
+void run_rom_tests();
 
 void run_all_tests();
 

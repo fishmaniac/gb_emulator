@@ -1,4 +1,4 @@
 #!/bin/bash
 ./build.sh
-valgrind --leak-check=full ./build/gb_emulator
+valgrind --leak-check=full -s ./build/gb_emulator
 rm build

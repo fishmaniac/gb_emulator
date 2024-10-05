@@ -5,7 +5,9 @@ project(gb_emulator C)
 set(C_STANDARD 23)
 set(C_STANDARD_REQUIRED ON)
 
-add_compile_options(-Wall -Wextra -g -Og -lm -DTESTS)
+add_compile_options(-lm -DTESTS)
+add_compile_options(-Wall -Wextra)
+add_compile_options(-g -O0)
 add_compile_options(-Wpedantic)
 # add_compile_options(-Werror)
 

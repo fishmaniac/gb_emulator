@@ -21,6 +21,47 @@ void set_reg_f(FlagRegister *flags, uint8_t val) {
 	flags->carry = (val >> CARRY_FLAG_BIT_POS) & 1;
 }
 
+void init_cpu(CPU *cpu) {
+	cpu->pc = 0x100;
+	cpu->sp = &cpu->map.memory[0xFFFE];
+
+	cpu->reg.a = 0;
+	cpu->reg.b = 0;
+	cpu->reg.c = 0;
+	cpu->reg.d = 0;
+	cpu->reg.e = 0;
+	cpu->reg.h = 0;
+	cpu->reg.l = 0;
+
+	cpu->reg.f.carry = 0;
+	cpu->reg.f.half_carry = 0;
+	cpu->reg.f.subtract = 0;
+	cpu->reg.f.zero = 0;
+	cpu->halt = 0;
+	cpu->ime = 0;
+}
+
+uint8_t *get_sp(CPU *cpu) {
+	return cpu->sp;
+}
+uint8_t get_sp_val(CPU *cpu) {
+	return *cpu->sp;
+}
+void set_sp_addr(CPU *cpu, uint16_t addr) {
+	cpu->sp = &cpu->map.memory[addr];
+}
+void set_sp_val(CPU *cpu, uint8_t val) {
+	*cpu->sp = val;
+}
+
+uint16_t get_pc(CPU *cpu) {
+	return cpu->pc;
+}
+
+void set_pc(CPU *cpu, uint16_t val) {
+	cpu->pc = val;
+}
+
 uint16_t get_reg_af(Register *reg) {
 	return ((uint16_t) reg->a) << 8 | ((uint16_t) get_reg_f(&reg->f));
 }
@@ -57,25 +98,12 @@ void set_reg_hl(Register *reg, uint16_t val) {
 	reg->l = (uint8_t) (val & UINT8_MAX);
 }
 
-uint16_t get_reg_sp(Register *reg) {
-	return reg->sp;
-}
-void set_reg_sp(Register *reg, uint16_t val) {
-	reg->sp = val;
-}
-
-uint16_t get_reg_pc(Register *reg) {
-	return reg->pc;
-}
-void set_reg_pc(Register *reg, uint16_t val) {
-	reg->pc = val;
-}
-
 uint8_t get_16_high(uint16_t num) {
-	return num >> 8; // Higher 8 bits
+	return (num >> 8) & 0xFF;
 }
+
 uint8_t get_16_low(uint16_t num) {
-	return num & 0xFF; // Lower 8 bits
+	return num & 0xFF;
 }
 
 void increment_reg_16(CPU *cpu, Target_16 target) {
@@ -88,97 +116,102 @@ void decrement_reg_16(CPU *cpu, Target_16 target) {
 	uint16_t *_16 = get_target_reg_16(cpu, target);
 	_16--;
 }
+void increment_reg_8(CPU *cpu, Target_8 target) {
+	// TODO: Handle null
+	uint8_t *_8 = get_target_reg_8(cpu, target);
+	_8++;
+}
+void decrement_reg_8(CPU *cpu, Target_8 target) {
+	// TODO: Handle null
+	uint8_t *_8 = get_target_reg_8(cpu, target);
+	_8--;
+}
+// // 8 bit load n8 into target
+// void ld_r8_n8(CPU *cpu, Target_8 target, uint8_t val) {
+// 	uint8_t *_8 = get_target_reg_8(cpu, target);
+// 	*_8 = val;
+// }
+// // 8 bit load register into target
+// void ld_r8_r8(CPU *cpu, Target_8 target, Target_8 contents) {
+// 	uint8_t contents_8 = *get_target_reg_8(cpu, contents);
+// 	ld_r8_n8(cpu, target, contents_8);
+// }
+// // Is actually defined as BC and DE separately
+// //
+// // 8 bit load memory at addr contents into target
+// void ld_r8_r16(CPU *cpu, Target_8 target, Target_16 contents) {
+// 	uint16_t *addr = get_target_reg_16(cpu, contents);
+// 	printf("addr HL: %d\ttarget: %d\n", *addr, contents);
+// 	uint8_t val = read_memory(&cpu->map, *addr);
+// 	printf("HL val: %d\tval: %d\n", *addr, val);
+// 	ld_r8_n8(cpu, target, val);
+// }
+// // 8 bit load memory at addr HL into target
+// void ld_r8_hl(CPU *cpu, Target_8 target) {
+// 	ld_r8_r16(cpu, target, HL);
+// }
+// // Store contents into memory at addr HL
+// void ld_hl_r8(CPU *cpu, Target_8 contents) {
+// 	uint8_t *_8 = get_target_reg_8(cpu, contents);
+// 	uint16_t addr = get_reg_hl(&cpu->reg);
+// 	write_memory(&cpu->map, addr, *_8);
+// }
+// // Store val into memory at addr HL
+// void ld_hl_n8(CPU *cpu, uint8_t val) {
+// 	uint16_t addr = get_reg_hl(&cpu->reg);
+// 	write_memory(&cpu->map, addr, val);
+// }
 
-// 8 bit load register into target
-void ld_r8_r8(CPU *cpu, Target_8 target, Target_8 contents) {
-	uint8_t *contents_8 = get_target_reg_8(cpu, contents);
-	uint8_t *target_8 = get_target_reg_8(cpu, target);
-	*target_8 = *contents_8;
-}
-
-// 8 bit load n8 into target
-void ld_r8_n8(CPU *cpu, Target_8 target, uint8_t val) {
-	uint8_t *_8 = get_target_reg_8(cpu, target);
-	*_8 = val;
-}
-// 8 bit load memory at addr HL into target
-void ld_r8_hl(CPU *cpu, Target_8 target) {
-	uint8_t *_8 = get_target_reg_8(cpu, target);
-	uint16_t addr = get_reg_hl(&cpu->reg);
-	uint8_t val = read_memory(&cpu->map, addr);
-	*_8 = val;
-}
-// Store contents into memory at addr HL
-void ld_hl_r8(CPU *cpu, Target_8 contents) {
-	uint8_t *_8 = get_target_reg_8(cpu, contents);
-	uint16_t addr = get_reg_hl(&cpu->reg);
-	write_memory(&cpu->map, addr, *_8);
-}
-// Store val into memory at addr HL
-void ld_hl_n8(CPU *cpu, uint8_t val) {
-	uint16_t addr = get_reg_hl(&cpu->reg);
-	write_memory(&cpu->map, addr, val);
-}
-// Can replace r8_hl
-// Is actually defined as BC and DE separately
-void ld_r8_r16(CPU *cpu, Target_8 target, Target_16 contents) {
-	uint8_t *_8 = get_target_reg_8(cpu, target);
-	uint16_t *addr = get_target_reg_16(cpu, contents);
-	uint8_t val = read_memory(&cpu->map, *addr);
-	*_8 = val;
-}
 // TODO: ld_a_c, ld_c_a, ld_a_n8, ld_n8_a, ld_a_n16, ld_n16_a, ld_a_hli, ld_a_hld, ld_bc_a, ld_de_a, ld_hli_a, ld_hld_a, ld_r16_n16, ld_sp_hl
-void push(CPU *cpu, Target_16 target) {
-	// TODO: Handle null
+void push_16(CPU *cpu, Target_16 target) {
+	uint16_t reg = *get_target_reg_16(cpu, target);
+	uint8_t low = get_16_low(reg);
+	uint8_t high = get_16_high(reg);
+
+	printf("reg: %d\tval: %d\tlow: %d\thigh: %d\n", reg, get_reg_de(&cpu->reg), low, high);
+
+	decrement_reg_8(cpu, SP);
+	set_sp_val(cpu, low);
+	decrement_reg_8(cpu, SP);
+	set_sp_val(cpu, high);
+}
+void push_8(CPU *cpu, Target_8 target) {
+	uint8_t reg = *get_target_reg_8(cpu, target);
+
+	decrement_reg_8(cpu, SP);
+	set_sp_val(cpu, reg);
+
+}
+/* TODO: FIXME pop is broken... push seems to work
+* 
+*
+*
+*
+*
+* */
+void pop_16(CPU *cpu, Target_16 target) {
 	uint16_t *reg = get_target_reg_16(cpu, target);
 
-	// Move to previous position in memory
-	decrement_reg_16(cpu, SP);
-	// Get high bits
-	uint8_t bits = get_16_high(*reg);
-	uint16_t addr = get_reg_sp(&cpu->reg);
-	write_memory(
-		&cpu->map,
-		addr,
-		bits
-	);
-	// Move to previous position in memory
-	decrement_reg_16(cpu, SP);
-	// Get high bits
-	bits = get_16_low(*reg);
-	addr = get_reg_sp(&cpu->reg);
-	write_memory(
-		&cpu->map,
-		get_reg_sp(&cpu->reg),
-		bits
-	);
-}
-void pop(CPU *cpu, Target_16 target) {
-	// TODO: Handle null
-	uint16_t *reg = get_target_reg_16(cpu, target);
+	increment_reg_8(cpu, SP);
+	uint8_t low = get_sp_val(cpu);
+	increment_reg_8(cpu, SP);
+	uint8_t high = get_sp_val(cpu);
 
-	uint8_t mem_at_addr_sp = read_memory(
-		&cpu->map,
-		get_reg_sp(&cpu->reg)
-	);
-	// Get high bits
-	uint8_t low = get_16_high(*reg);
-	// Preserve high bits and write low bits
-	uint16_t val = low << 8 | mem_at_addr_sp;
-	*reg = val; // Load first memory block to target
-	increment_reg_16(cpu, SP); // Move to next position in memory
+	uint16_t bits = low | high;
 
-	mem_at_addr_sp = read_memory(
-		&cpu->map,
-		get_reg_sp(&cpu->reg)
-	);
-	// Get low bits
-	low = get_16_low(*reg);
-	// Preserve low bits and write high bits
-	val = mem_at_addr_sp << 8 | low;
-	*reg = val; // Load second memory block to target
-	increment_reg_16(cpu, SP); // Move to next position in memory
+	printf("pop low: %d\thigh: %d\t bits: %d\n", low, high, bits);
+
+	*reg = bits;
 }
+void pop_8(CPU *cpu, Target_8 target) {
+	uint8_t *reg = get_target_reg_8(cpu, target);
+
+	uint8_t bits = get_sp_val(cpu);
+	increment_reg_8(cpu, SP);
+
+	*reg = bits;
+}
+
 // TODO: ldhl_sp_e, ld_n16_sp
 // 8 bit add r8 to A register
 void add_r8(CPU *cpu, Target_8 target) {
@@ -206,25 +239,6 @@ void add_hl(CPU *cpu) {
 
 	add_n8(cpu, val);
 }
-// TODO: adc_a_s, adc_a_r, adc_a_n, adc_a_hl
-// 8 bit add to A register with carry
-void adc(CPU *cpu, uint8_t val) {
-	// TODO: FIXME
-	uint8_t adc = cpu->reg.a + val + cpu->reg.f.carry;
-
-	cpu->reg.f.zero = adc == 0;
-	cpu->reg.f.subtract = false;
-	// Should carry be set before or after?
-	cpu->reg.f.carry = cpu->reg.a + val + cpu->reg.f.carry > UINT8_MAX;
-	// Can be simplified to (adc & UINT4_MAX) > UINT4_MAX?
-	cpu->reg.f.half_carry =
-		(cpu->reg.a & UINT4_MAX)
-		+ (val & UINT4_MAX)
-		+ cpu->reg.f.carry
-		> UINT4_MAX;
-
-	cpu->reg.a = adc;
-}
 // val accepts BC, DE, HL, and SP
 // 16 bit add to HL register
 void addhl(CPU *cpu, uint16_t val) {
@@ -243,22 +257,65 @@ void addhl(CPU *cpu, uint16_t val) {
 void addsp(CPU *cpu, uint8_t val) {
 	cpu->reg.f.zero = val == 0;
 	cpu->reg.f.subtract = false;
-	cpu->reg.f.carry = val + get_reg_sp(&cpu->reg) > UINT16_MAX;
+	cpu->reg.f.carry = val + *get_sp(cpu) > UINT16_MAX;
 	cpu->reg.f.half_carry =
-		(get_reg_sp(&cpu->reg) & UINT12_MAX)
+		(*get_sp(cpu) & UINT12_MAX)
 		+ (val & UINT12_MAX)
 		> UINT12_MAX;
-	uint16_t sp = get_reg_sp(&cpu->reg) + val;
-	set_reg_sp(&cpu->reg, sp);
+	uint8_t sp = *get_sp(cpu) + val;
+	set_sp_addr(cpu, sp);
 }
+// TODO: adc_a_s, adc_a_r, adc_a_n, adc_a_hl
+// 8 bit add to A register with carry
+void adc(CPU *cpu, uint8_t val) {
+	// TODO: FIXME
+	uint8_t adc = cpu->reg.a + val + cpu->reg.f.carry;
+	if (cpu->reg.a + val > UINT8_MAX) adc++;
 
+	cpu->reg.f.zero = adc == 0;
+	cpu->reg.f.subtract = false;
+	// Should carry be set before or after?
+	cpu->reg.f.carry = cpu->reg.a + val + cpu->reg.f.carry > UINT8_MAX;
+	// Can be simplified to (adc & UINT4_MAX) > UINT4_MAX?
+	cpu->reg.f.half_carry =
+		(cpu->reg.a & UINT4_MAX)
+		+ (val & UINT4_MAX)
+		+ cpu->reg.f.carry
+		> UINT4_MAX;
+
+	cpu->reg.a = adc;
+}
+// void andhl(CPU *cpu, uint16_t val) {
+// 	
+// }
+void sub(CPU *cpu, uint8_t val) {
+	uint8_t sub = cpu->reg.a - val;
+
+	cpu->reg.f.zero = sub == 0;
+	cpu->reg.f.subtract = true;
+
+	// TODO: Carry flags set on for no borrow
+	// Half carry set on for no borrow from bit 4
+	cpu->reg.f.carry = cpu->reg.a + val > UINT8_MAX;
+	cpu->reg.f.half_carry =
+		(cpu->reg.a & UINT4_MAX)
+		+ (val & UINT4_MAX)
+		> UINT4_MAX;
+
+	cpu->reg.a = sub;
+}
+void sbc(CPU *cpu, uint8_t val) {
+	sub(cpu, val);
+
+	cpu->reg.a += cpu->reg.f.carry;
+}
 // 8 bit and val with A register
 void and(CPU *cpu, uint8_t val) {
 	uint8_t and = cpu->reg.a & val;
 
 	cpu->reg.f.zero = and == 0;
 	cpu->reg.f.subtract = false;
-	cpu->reg.f.carry = and > UINT8_MAX;
+	cpu->reg.f.carry = false;
 	cpu->reg.f.half_carry =
 		((cpu->reg.a & UINT4_MAX) 
 		& (val & UINT4_MAX)) 
@@ -266,9 +323,64 @@ void and(CPU *cpu, uint8_t val) {
 
 	cpu->reg.a = and;
 }
-void andhl(CPU *cpu, uint16_t val) {
-	
+void or(CPU *cpu, uint8_t val) {
+	uint8_t or = cpu->reg.a & val;
+
+	cpu->reg.f.zero = or == 0;
+	cpu->reg.f.subtract = false;
+	cpu->reg.f.carry = false;
+	cpu->reg.f.half_carry =
+		((cpu->reg.a & UINT4_MAX) 
+		| (val & UINT4_MAX)) 
+		> UINT4_MAX;
+
+	cpu->reg.a = or;
 }
+void xor(CPU *cpu, uint8_t val) {
+	uint8_t xor = cpu->reg.a ^ val;
+
+	cpu->reg.f.zero = xor == 0;
+	cpu->reg.f.subtract = false;
+	cpu->reg.f.carry = false;
+	cpu->reg.f.half_carry = false;
+
+	cpu->reg.a = xor;
+}
+void cp(CPU *cpu, uint8_t val) {
+	bool cp = cpu->reg.a == val;
+
+	cpu->reg.f.zero = cp;
+	cpu->reg.f.subtract = false;
+	// TODO: Carry flags set on for no borrow
+	// Half carry set on for no borrow from bit 4
+	cpu->reg.f.carry = false;
+	cpu->reg.f.half_carry = false;
+
+	cpu->reg.a = cp;
+}
+void inc(CPU *cpu, uint8_t val) {
+	uint8_t inc = cpu->reg.a + 1;
+
+	cpu->reg.f.zero = inc == 0;
+	cpu->reg.f.subtract = false;
+	// Carry not affected
+	// TODO: Half carry set on carry from bit 3
+	cpu->reg.f.half_carry = false;
+
+	cpu->reg.a = inc;
+}
+void dec(CPU *cpu, uint8_t val) {
+	uint8_t inc = cpu->reg.a - 1;
+
+	cpu->reg.f.zero = inc == 0;
+	cpu->reg.f.subtract = true;
+	// Carry not affected
+	// TODO: Half carry set on no borrow from bit 4
+	cpu->reg.f.half_carry = false;
+
+	cpu->reg.a = inc;
+}
+
 // TODO 16 bit
 // Test bit in register val, set zero flag accordingly
 // bit is 3 bits (0-7)
@@ -316,12 +428,15 @@ uint8_t *get_target_reg_8(CPU *cpu, Target_8 target) {
 			return &cpu->reg.h;
 		case L:
 			return &cpu->reg.l;
+		case SP:
+			return cpu->sp;
 		default:
 			// TODO: Error logger
 			printf("[ERROR]\tINVALID TARGET REG 8 BIT\n");
 			return NULL;
 	}
 }
+// TODO: Fix endianness bug
 uint16_t *get_target_reg_16(CPU *cpu, Target_16 target) {
 	switch (target) {
 		// TODO
@@ -330,15 +445,14 @@ uint16_t *get_target_reg_16(CPU *cpu, Target_16 target) {
 			/* return (uint16_t*) &cpu->reg.a; */
 			return NULL;
 		case BC:
-			return (uint16_t*) &cpu->reg.b;
+			return (uint16_t*) &cpu->reg.c;
 		case DE:
-			return (uint16_t*) &cpu->reg.d;
+			return (uint16_t*) &cpu->reg.e;
 		case HL:
-			return (uint16_t*) &cpu->reg.h;
-		case SP:
-			return &cpu->reg.sp;
+			printf("target HL: %d\n", *(&cpu->reg.l));
+			return (uint16_t*) &cpu->reg.l;
 		case PC:
-			return &cpu->reg.pc;
+			return &cpu->pc;
 		default:
 			// TODO: Error logger
 			printf("[ERROR]\tINVALID TARGET REG 16 BIT\n");
@@ -346,45 +460,124 @@ uint16_t *get_target_reg_16(CPU *cpu, Target_16 target) {
 	}
 }
 
+Target_8 decode_register_8(int reg) {
+	switch(reg) {
+		case 0:
+			return B;
+		case 1:
+			return C;
+		case 2:
+			return D;
+		case 3:
+			return E;
+		case 4:
+			return H;
+		case 5:
+			return L;
+		// TODO: case 6, HL
+		case 7:
+			return A;
+		default:
+			printf("[ERROR]\tInvalid decode register 8 bit\n");
+	}
+}
+
 // Remove return values from instructions, instead set directly
 // Instead, Decode opcodes in this function and call appropriately
-// void execute_instruction(CPU *cpu, Instruction opcode, Target_8 target_8, Target_16 target_16, int bit_index, int address) {
-// 	uint8_t *target_reg_8 = get_target_reg_8(cpu, target_8);
-// 	uint16_t *target_reg_16 = get_target_reg_16(cpu, target_16);
-//
-// 	switch (opcode) {
-// 		case ADC:
-// 			adc(cpu, *target_reg_8);
-// 			break;
-// 		case ADD:
-// 			add_n8(cpu, *target_reg_8);
-// 			break;
-// 		case ADDHL:
-// 			addhl(cpu, *target_reg_16);
-// 			break;
-// 		case ADDSP:
-// 			addsp(cpu, *target_reg_8);
-// 			break;
-// 		case AND:
-// 			and(cpu, *target_reg_8);
-// 			break;
-// 		case BIT:
-// 			bit(cpu, *target_reg_8, bit_index);
-// 			break;
-// 		case CALL:
-// 			call(cpu, address);
-// 			break;
-// 		case DI:
-// 			di(cpu);
-// 			break;
-// 		case EI:
-// 			ei(cpu);
-// 			break;
-// 		case POP:
-// 			pop(cpu, *target_reg_16);
-// 			break;
-// 		case PUSH:
-// 			push(cpu, *target_reg_16);
-// 			break;
-// 	}
-// }
+void execute_instruction(CPU *cpu, Instruction opcode, Target_8 target_8, Target_16 target_16, int bit_index, int address) {
+	uint8_t *target_reg_8 = get_target_reg_8(cpu, target_8);
+	uint16_t *target_reg_16 = get_target_reg_16(cpu, target_16);
+	printf("Executing instruction: %d = %s dest, src(%d - %d)\n", opcode, instruction_string(opcode), *target_reg_8, *target_reg_16);
+
+	switch (opcode) {
+		case ADD:
+			add_n8(cpu, *target_reg_8);
+			break;
+		case ADC:
+			adc(cpu, *target_reg_8);
+			break;
+		// case ADDHL:
+		// 	addhl(cpu, *target_reg_16);
+		// 	break;
+		// case ADDSP:
+		// 	addsp(cpu, *target_reg_8);
+		// 	break;
+		case SUB:
+			sub(cpu, *target_reg_8);
+			break;
+		case SBC:
+			sbc(cpu, *target_reg_8);
+			break;
+		case AND:
+			and(cpu, *target_reg_8);
+			break;
+		case OR:
+			or(cpu, *target_reg_8);
+			break;
+		case XOR:
+			xor(cpu, *target_reg_8);
+			break;
+		case CP:
+			cp(cpu, *target_reg_8);
+			break;
+		case INC:
+			inc(cpu, *target_reg_8);
+			break;
+		case DEC:
+			dec(cpu, *target_reg_8);
+			break;
+		case CALL:
+			call(cpu, address);
+			break;
+		case DI:
+			di(cpu);
+			break;
+		case EI:
+			ei(cpu);
+			break;
+		case POP:
+			pop_16(cpu, *target_reg_16);
+			break;
+		case PUSH:
+			push_16(cpu, *target_reg_16);
+			break;
+	}
+}
+// copy from execute_instruction then
+// f:€ý5hvbyjwv$bpbireturn "f;€ý5i"jdd0w
+char *instruction_string(Instruction opcode) {
+	switch (opcode) {
+		case ADD:
+			return "ADD";
+		case ADC:
+			return "ADC";
+		// case ADDHL:
+		// case ADDSP:
+		case SUB:
+			return "SUB";
+		case SBC:
+			return "SBC";
+		case AND:
+			return "AND";
+		case OR:
+			return "OR";
+		case XOR:
+			return "XOR";
+		case CP:
+			return "CP";
+		case INC:
+			return "INC";
+		case DEC:
+			return "DEC";
+		case CALL:
+			return "CALL";
+		case DI:
+			return "DI";
+		case EI:
+			return "EI";
+		case POP:
+			return "POP";
+		case PUSH:
+			return "PUSH";
+	}
+}

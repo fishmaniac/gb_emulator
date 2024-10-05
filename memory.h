@@ -62,4 +62,9 @@ typedef struct Memory_t {
 void write_memory(MemoryMap *map, uint16_t address, uint8_t val);
 uint8_t read_memory(MemoryMap *map, uint16_t address);
 
+void load_simple_rom(MemoryMap *map);
+void load_rom(MemoryMap *map);
+
+void read_rom(MemoryMap *map);
+
 #endif	// MEMORY_H
