@@ -7,10 +7,14 @@
 #include "memory.h"
 
 typedef struct FlagRegister_t {
-	bool zero;		// Z
-	bool subtract;		// N
-	bool half_carry;	// H
+	bool bit_0;
+	bool bit_1;
+	bool bit_2;
+	bool bit_3;
 	bool carry;		// C
+	bool half_carry;	// H
+	bool subtract;		// N
+	bool zero;		// Z
 } FlagRegister;
 
 uint8_t get_reg_f(FlagRegister *flags);
@@ -37,14 +41,15 @@ typedef struct CPU_t {
 	Register reg;
 	MemoryMap map;
 	uint16_t pc;
-	uint8_t *sp;
+	uint16_t sp;
 	bool ime;	// Interrupt Master Enable Flag	TODO: Set to false when ROM loaded
 	bool halt;
 } CPU;
 
 void init_cpu(CPU *cpu);
 
-uint8_t *get_sp(CPU *cpu);
+uint16_t get_sp_addr(CPU *cpu);
+uint8_t *get_sp_mem(CPU *cpu);
 uint8_t get_sp_val(CPU *cpu);
 void set_sp_addr(CPU *cpu, uint16_t addr);
 void set_sp_val(CPU *cpu, uint8_t val);
@@ -58,17 +63,18 @@ typedef enum {
 	E,
 	H,
 	L,
-	SP,
 } Target_8;
 
 typedef enum {
-	AF,	// ALU Accumulator / Flags Register
 	BC,
 	DE,
 	HL,
+	SP,
 	PC,
+	AF,	// ALU Accumulator / Flags Register
 } Target_16;
 
+// Maybe remove all get and set
 uint16_t get_reg_af(Register *reg);
 void set_reg_af(Register *reg, uint16_t val);
 
@@ -101,13 +107,13 @@ typedef enum {
 	OR,
 	XOR,
 	CP,
-	INC,
-	DEC,
-	CALL,
-	DI,
-	EI,
-	POP,
-	PUSH,
+	// INC,
+	// DEC,
+	// CALL,
+	// DI,
+	// EI,
+	// POP,
+	// PUSH,
 } Instruction;
 
 
@@ -121,10 +127,10 @@ typedef enum {
 // void ld_r8_hl(CPU *cpu, Target_8 target);
 // void ld_hl_r8(CPU *cpu, Target_8 target);
 // void ld_hl_n8(CPU *cpu, uint8_t val);
-void push_16(CPU *cpu, Target_16 target);
-void push_8(CPU *cpu, Target_8 target);
-void pop_16(CPU *cpu, Target_16 target);
-void pop_8(CPU *cpu, Target_8 target);
+void push_n16(CPU *cpu, uint16_t val);
+void push_r16(CPU *cpu, Target_16 target);
+void pop_r16(CPU *cpu, Target_16 target);
+uint16_t pop_n16(CPU *cpu);
 void add_r8(CPU *cpu, Target_8 target);
 void add_n8(CPU *cpu, uint8_t val);
 void addhl(CPU *cpu, uint16_t val);
@@ -142,11 +148,15 @@ void dec(CPU *cpu, uint8_t val);
 void call(CPU *cpu, int n);
 void di(CPU *cpu);
 void ei(CPU *cpu);
+void jp(CPU *cpu, uint16_t addr);
 
 uint8_t *get_target_reg_8(CPU *cpu, Target_8 target);
 uint16_t *get_target_reg_16(CPU *cpu, Target_16 target);
 
+Target_8 decode_register_8_pairs(int reg, bool lower);
 Target_8 decode_register_8(int reg);
+Target_16 decode_register_16(int reg);
+
 void execute_instruction(CPU *cpu, Instruction opcode, Target_8 target_8, Target_16 target_16, int bit_index, int address);
 
 char *instruction_string(Instruction opcode);

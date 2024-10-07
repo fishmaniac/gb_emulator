@@ -11,11 +11,16 @@ add_compile_options(-g -O0)
 add_compile_options(-Wpedantic)
 # add_compile_options(-Werror)
 
+find_package(SDL2 REQUIRED)
+
 add_executable(gb_emulator
-	main.c
-	cpu.c
-	memory.c
-	tests.c
+    main.c
+    cpu.c
+    memory.c
+    tests.c
+    window.c
 )
 
-target_link_libraries(gb_emulator m)
+target_link_libraries(gb_emulator m SDL2)
+
+target_include_directories(gb_emulator PRIVATE ${SDL2_INCLUDE_DIRS})

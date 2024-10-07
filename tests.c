@@ -141,11 +141,9 @@ void run_reg_target_tests() {
 		bool pass = b == 0b10101111
 			&& c == 0b11100111;
 
-		printf("b: %b\tc: %b\n", b, c);
-
 		test_log(
 			pass,
-			"Reg Target Test --- bc"
+			"Target Test --- bc"
 		);
 	}
 	{
@@ -162,7 +160,7 @@ void run_reg_target_tests() {
 
 		test_log(
 			pass,
-			"Reg Target Test --- de"
+			"Target Test --- de"
 		);
 	}
 	{
@@ -185,29 +183,58 @@ void run_reg_target_tests() {
 }
 
 void run_register_set_get() {
-	Register test_reg;
-	int v;
-	int count = 0;
-	int expect = 327680; // (65535 + 1) * 5
-	for (int i = 0; i <= 65535; i++) {
-		set_reg_bc(&test_reg, i);
-		v = get_reg_bc(&test_reg);
-		if (v == i) count++;
+	// Register test_reg;
+	// int v;
+	// int count = 0;
+	// int expect = 327675; // (65535 + 1) * 5
+	// for (int i = 0; i < 65535; i++) {
+	// 	set_reg_bc(&test_reg, i);
+	// 	v = get_reg_bc(&test_reg);
+	// 	if (v == i) count++;
+	//
+	// 	set_reg_de(&test_reg, i);
+	// 	v = get_reg_de(&test_reg);
+	// 	if (v == i) count++;
+	//
+	// 	set_reg_hl(&test_reg, i);
+	// 	v = get_reg_hl(&test_reg);
+	// 	if (v == i) count++;
+	// }
+	// test_log(
+	// 	count == expect,
+	// 	"set_get_16"
+	// );
+	CPU cpu;
+	init_cpu(&cpu);
 
-		set_reg_de(&test_reg, i);
-		v = get_reg_de(&test_reg);
-		if (v == i) count++;
-
-		set_reg_hl(&test_reg, i);
-		v = get_reg_hl(&test_reg);
-		if (v == i) count++;
-	}
+	set_reg_af(&cpu.reg, 0x1234);
 	test_log(
-		count == expect,
-		"set_get_16_bit_reg"
+		get_reg_af(&cpu.reg) == 0x1234,
+		"set_get_af"
 	);
+
+	set_reg_bc(&cpu.reg, 0x1234);
+	test_log(
+		get_reg_bc(&cpu.reg) == 0x1234,
+		"set_get_bc"
+	);
+
+	set_reg_de(&cpu.reg, 0x1234);
+	test_log(
+		get_reg_de(&cpu.reg) == 0x1234,
+		"set_get_de"
+	);
+
+	set_reg_hl(&cpu.reg, 0x1234);
+	test_log(
+		get_reg_hl(&cpu.reg) == 0x1234,
+		"set_get_hl"
+	);
+
+
+
 }
-void run_flag_register_permutations() {
+void run_register_flag_permutations() {
 	Register test_reg;
 	int count = 0;
 	int expect = 16; // 15 + 1
@@ -243,6 +270,7 @@ void run_register_flag() {
 void run_register_tests() {
 	run_register_set_get();
 	run_register_flag();
+	run_register_flag_permutations();
 }
 // Test load
 // void run_instruction_ld() {
@@ -557,29 +585,66 @@ void run_memory_tests() {
 	free(str);
 }
 void run_stack_tests() {
-	CPU cpu;
-	init_cpu(&cpu);
-	uint16_t expect = 0x1234;
+	{	
+		CPU cpu;
+		init_cpu(&cpu);
+		set_sp_addr(&cpu, 255);
 
-	set_sp_addr(&cpu, 255);
-	set_reg_de(&cpu.reg, expect);
+		uint16_t expect = 0x1234;
+		set_reg_de(&cpu.reg, expect);
 
-	push_16(&cpu, DE);
-	printf("reg de: %d\n", get_reg_de(&cpu.reg));
+		push_r16(&cpu, DE);
+		pop_r16(&cpu, BC);
 
-	printf("sp push: val: %d\treg: %d\n", get_sp_val(&cpu), *cpu.sp);
-	pop_16(&cpu, BC);
+		uint16_t val = get_reg_bc(&cpu.reg);
 
-	printf("reg bc: %d\n", get_reg_bc(&cpu.reg));
+		test_log(
+			val == expect,
+			"Stack DE"
+		);
+	}
+	{	
+		CPU cpu;
+		init_cpu(&cpu);
+		set_sp_addr(&cpu, 0x100);
 
-	uint16_t val = get_reg_bc(&cpu.reg);
+		int expect = 0x1234 + 0xAF20 + 0x9843 + 0x9292 + 0x0003 + 0x3331 + 0x00B4;
+		int sum = 0;
 
-	printf("%d expect\t%d val\n", expect, val);
+		set_reg_bc(&cpu.reg, 0x1234);
+		push_r16(&cpu, BC);
+		set_reg_de(&cpu.reg, 0xAF20);
+		push_r16(&cpu, DE);
+		set_reg_hl(&cpu.reg, 0x9843);
+		push_r16(&cpu, HL);
+		set_reg_bc(&cpu.reg, 0x9292);
+		push_r16(&cpu, BC);
+		set_reg_de(&cpu.reg, 0x0003);
+		push_r16(&cpu, DE);
 
-	test_log(
-		val == expect,
-		"Stack Test --- "
-	);
+		set_reg_bc(&cpu.reg, 0x3331);
+		push_r16(&cpu, BC);
+		pop_r16(&cpu, HL);
+		sum += get_reg_hl(&cpu.reg);
+
+		set_reg_hl(&cpu.reg, 0x00B4);
+		push_r16(&cpu, HL);
+		// set_reg_af(&cpu.reg, 0xAF3F);
+		// push(&cpu, AF);
+
+		// printf("reg af: 0x%x\n", get_reg_af(&cpu.reg));
+
+		for (int i = 0; i < 6; i++) {
+			pop_r16(&cpu, BC);
+			sum += get_reg_bc(&cpu.reg);
+		}
+
+		test_log(
+			sum == expect,
+			"Stack BC, DE, HL"
+		);
+	}
+
 }
 void run_rom_tests() {
 

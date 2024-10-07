@@ -6,12 +6,19 @@ static const uint8_t ZERO_FLAG_BIT_POS = 7;
 static const uint8_t SUBTRACT_FLAG_BIT_POS = 6;
 static const uint8_t HALF_CARRY_FLAG_BIT_POS = 5;
 static const uint8_t CARRY_FLAG_BIT_POS = 4;
+static const uint8_t FLAG_BIT_3_POS = 3;
+static const uint8_t FLAG_BIT_2_POS = 2;
+static const uint8_t FLAG_BIT_1_POS = 1;
+
 
 uint8_t get_reg_f(FlagRegister *flags) {
 	return flags->zero << ZERO_FLAG_BIT_POS
 	| flags->subtract << SUBTRACT_FLAG_BIT_POS
 	| flags->half_carry << HALF_CARRY_FLAG_BIT_POS
-	| flags->carry << CARRY_FLAG_BIT_POS;
+	| flags->carry << CARRY_FLAG_BIT_POS
+	| flags->bit_3 << FLAG_BIT_3_POS
+	| flags->bit_2 << FLAG_BIT_2_POS
+	| flags->bit_1;
 }
 
 void set_reg_f(FlagRegister *flags, uint8_t val) {
@@ -19,11 +26,16 @@ void set_reg_f(FlagRegister *flags, uint8_t val) {
 	flags->subtract = (val >> SUBTRACT_FLAG_BIT_POS) & 1;
 	flags->half_carry = (val >> HALF_CARRY_FLAG_BIT_POS) & 1;
 	flags->carry = (val >> CARRY_FLAG_BIT_POS) & 1;
+	flags->bit_3 = (val >> FLAG_BIT_3_POS) & 1;
+	flags->bit_2 = (val >> FLAG_BIT_2_POS) & 1;
+	flags->bit_1 = (val >> FLAG_BIT_1_POS) & 1;
+	flags->bit_0 = val & 1;
 }
 
 void init_cpu(CPU *cpu) {
-	cpu->pc = 0x100;
-	cpu->sp = &cpu->map.memory[0xFFFE];
+	cpu->pc = 0;
+	set_sp_addr(cpu, 0xFFFE);
+	// cpu->sp = &cpu->map.memory[0xFFFE];
 
 	cpu->reg.a = 0;
 	cpu->reg.b = 0;
@@ -37,21 +49,32 @@ void init_cpu(CPU *cpu) {
 	cpu->reg.f.half_carry = 0;
 	cpu->reg.f.subtract = 0;
 	cpu->reg.f.zero = 0;
+	cpu->reg.f.bit_3 = 0;
+	cpu->reg.f.bit_2 = 0;
+	cpu->reg.f.bit_1 = 0;
+	cpu->reg.f.bit_0 = 0;
 	cpu->halt = 0;
 	cpu->ime = 0;
 }
 
-uint8_t *get_sp(CPU *cpu) {
+void power_up_sequence(CPU *cpu) {
+
+}
+
+uint16_t get_sp_addr(CPU *cpu) {
 	return cpu->sp;
 }
+uint8_t *get_sp_mem(CPU *cpu) {
+	return &cpu->map.memory[cpu->sp];
+}
 uint8_t get_sp_val(CPU *cpu) {
-	return *cpu->sp;
+	return read_memory(&cpu->map, cpu->sp);
 }
 void set_sp_addr(CPU *cpu, uint16_t addr) {
-	cpu->sp = &cpu->map.memory[addr];
+	cpu->sp = addr;
 }
 void set_sp_val(CPU *cpu, uint8_t val) {
-	*cpu->sp = val;
+	write_memory(&cpu->map, cpu->sp, val);
 }
 
 uint16_t get_pc(CPU *cpu) {
@@ -163,55 +186,42 @@ void decrement_reg_8(CPU *cpu, Target_8 target) {
 // }
 
 // TODO: ld_a_c, ld_c_a, ld_a_n8, ld_n8_a, ld_a_n16, ld_n16_a, ld_a_hli, ld_a_hld, ld_bc_a, ld_de_a, ld_hli_a, ld_hld_a, ld_r16_n16, ld_sp_hl
-void push_16(CPU *cpu, Target_16 target) {
+void push_n16(CPU *cpu, uint16_t val) {
+	cpu->sp--;
+	set_sp_val(cpu, val >> 8);
+	cpu->sp--;
+	set_sp_val(cpu, val & 0xFF);
+}
+void push_r16(CPU *cpu, Target_16 target) {
 	uint16_t reg = *get_target_reg_16(cpu, target);
-	uint8_t low = get_16_low(reg);
-	uint8_t high = get_16_high(reg);
 
-	printf("reg: %d\tval: %d\tlow: %d\thigh: %d\n", reg, get_reg_de(&cpu->reg), low, high);
-
-	decrement_reg_8(cpu, SP);
-	set_sp_val(cpu, low);
-	decrement_reg_8(cpu, SP);
-	set_sp_val(cpu, high);
+	cpu->sp--;
+	set_sp_val(cpu, reg >> 8);
+	cpu->sp--;
+	set_sp_val(cpu, reg & 0xFF);
 }
-void push_8(CPU *cpu, Target_8 target) {
-	uint8_t reg = *get_target_reg_8(cpu, target);
-
-	decrement_reg_8(cpu, SP);
-	set_sp_val(cpu, reg);
-
-}
-/* TODO: FIXME pop is broken... push seems to work
-* 
-*
-*
-*
-*
-* */
-void pop_16(CPU *cpu, Target_16 target) {
+void pop_r16(CPU *cpu, Target_16 target) {
 	uint16_t *reg = get_target_reg_16(cpu, target);
 
-	increment_reg_8(cpu, SP);
 	uint8_t low = get_sp_val(cpu);
-	increment_reg_8(cpu, SP);
+	cpu->sp++;
 	uint8_t high = get_sp_val(cpu);
+	cpu->sp++;
 
-	uint16_t bits = low | high;
-
-	printf("pop low: %d\thigh: %d\t bits: %d\n", low, high, bits);
-
-	*reg = bits;
-}
-void pop_8(CPU *cpu, Target_8 target) {
-	uint8_t *reg = get_target_reg_8(cpu, target);
-
-	uint8_t bits = get_sp_val(cpu);
-	increment_reg_8(cpu, SP);
+	uint16_t bits = low | (high << 8);
 
 	*reg = bits;
 }
+uint16_t pop_n16(CPU *cpu) {
+	uint8_t low = get_sp_val(cpu);
+	cpu->sp++;
+	uint8_t high = get_sp_val(cpu);
+	cpu->sp++;
 
+	uint16_t bits = low | (high << 8);
+
+	return bits;
+}
 // TODO: ldhl_sp_e, ld_n16_sp
 // 8 bit add r8 to A register
 void add_r8(CPU *cpu, Target_8 target) {
@@ -257,12 +267,12 @@ void addhl(CPU *cpu, uint16_t val) {
 void addsp(CPU *cpu, uint8_t val) {
 	cpu->reg.f.zero = val == 0;
 	cpu->reg.f.subtract = false;
-	cpu->reg.f.carry = val + *get_sp(cpu) > UINT16_MAX;
+	cpu->reg.f.carry = val + *get_sp_mem(cpu) > UINT16_MAX;
 	cpu->reg.f.half_carry =
-		(*get_sp(cpu) & UINT12_MAX)
+		(*get_sp_mem(cpu) & UINT12_MAX)
 		+ (val & UINT12_MAX)
 		> UINT12_MAX;
-	uint8_t sp = *get_sp(cpu) + val;
+	uint8_t sp = *get_sp_mem(cpu) + val;
 	set_sp_addr(cpu, sp);
 }
 // TODO: adc_a_s, adc_a_r, adc_a_n, adc_a_hl
@@ -396,14 +406,18 @@ void call(CPU *cpu, int n) {
 	// TODO: push address of next instruction to stack and jump to address n
 	// Decode opcode at n + 1, execute it
 }
-//Disable interrupts
+// Disable interrupts
 void di(CPU *cpu) {
 	cpu->ime = false;
 }
-//Enable interrupts
+// Enable interrupts
 void ei(CPU *cpu) {
 	// TODO: Delay setting to true by one instruction
 	cpu->ime = true;
+}
+// Jump to addr
+void jp(CPU *cpu, uint16_t addr) {
+	cpu->pc = addr;
 }
 
 // Get 8 bit register
@@ -428,8 +442,6 @@ uint8_t *get_target_reg_8(CPU *cpu, Target_8 target) {
 			return &cpu->reg.h;
 		case L:
 			return &cpu->reg.l;
-		case SP:
-			return cpu->sp;
 		default:
 			// TODO: Error logger
 			printf("[ERROR]\tINVALID TARGET REG 8 BIT\n");
@@ -439,24 +451,54 @@ uint8_t *get_target_reg_8(CPU *cpu, Target_8 target) {
 // TODO: Fix endianness bug
 uint16_t *get_target_reg_16(CPU *cpu, Target_16 target) {
 	switch (target) {
-		// TODO
-		case AF:
-			//TODO
-			/* return (uint16_t*) &cpu->reg.a; */
-			return NULL;
 		case BC:
 			return (uint16_t*) &cpu->reg.c;
 		case DE:
 			return (uint16_t*) &cpu->reg.e;
 		case HL:
-			printf("target HL: %d\n", *(&cpu->reg.l));
 			return (uint16_t*) &cpu->reg.l;
 		case PC:
 			return &cpu->pc;
+		case SP:
+			return &cpu->sp;
+		// TODO
+		case AF:
+			//TODO
+			/* return (uint16_t*) &cpu->reg.a; */
+			return NULL;
 		default:
 			// TODO: Error logger
-			printf("[ERROR]\tINVALID TARGET REG 16 BIT\n");
+			printf("[ERROR]\tINVALID TARGET REG 16 BIT: %d\n", target);
 			return NULL;
+	}
+}
+
+Target_8 decode_register_8_pairs(int reg, bool lower) {
+	if (lower) {
+		switch(reg) {
+			case 0:
+				return B;
+			case 1:
+				return D;
+			case 2:
+				return H;
+			default:
+				printf("[ERROR]\tInvalid decode register 8 bit pairs lower\n");
+		}
+	}
+	else {
+		switch(reg) {
+			case 0:
+				return C;
+			case 1:
+				return E;
+			case 2:
+				return L;
+			case 3:
+				return A;
+			default:
+				printf("[ERROR]\tInvalid decode register 8 bit pairs higher\n");
+		}
 	}
 }
 
@@ -479,6 +521,22 @@ Target_8 decode_register_8(int reg) {
 			return A;
 		default:
 			printf("[ERROR]\tInvalid decode register 8 bit\n");
+	}
+}
+
+Target_16 decode_register_16(int reg) {
+	switch (reg) {
+		case 0:
+			return BC;
+		case 1:
+			return DE;
+		case 2:
+			return HL;
+		case 3:
+			return AF;
+			printf("[ERROR]\tInvalid decode register 16 bit - AF\n");
+		default:
+			printf("[ERROR]\tInvalid decode register 16 bit: %d\n", reg);
 	}
 }
 
@@ -520,27 +578,27 @@ void execute_instruction(CPU *cpu, Instruction opcode, Target_8 target_8, Target
 		case CP:
 			cp(cpu, *target_reg_8);
 			break;
-		case INC:
-			inc(cpu, *target_reg_8);
-			break;
-		case DEC:
-			dec(cpu, *target_reg_8);
-			break;
-		case CALL:
-			call(cpu, address);
-			break;
-		case DI:
-			di(cpu);
-			break;
-		case EI:
-			ei(cpu);
-			break;
-		case POP:
-			pop_16(cpu, *target_reg_16);
-			break;
-		case PUSH:
-			push_16(cpu, *target_reg_16);
-			break;
+		// case INC:
+		// 	inc(cpu, *target_reg_8);
+		// 	break;
+		// case DEC:
+		// 	dec(cpu, *target_reg_8);
+		// 	break;
+		// case CALL:
+		// 	call(cpu, address);
+		// 	break;
+		// case DI:
+		// 	di(cpu);
+		// 	break;
+		// case EI:
+		// 	ei(cpu);
+		// 	break;
+		// case POP:
+		// 	pop(cpu, *target_reg_16);
+		// 	break;
+		// case PUSH:
+		// 	push(cpu, *target_reg_16);
+		// 	break;
 	}
 }
 // copy from execute_instruction then
@@ -565,19 +623,19 @@ char *instruction_string(Instruction opcode) {
 			return "XOR";
 		case CP:
 			return "CP";
-		case INC:
-			return "INC";
-		case DEC:
-			return "DEC";
-		case CALL:
-			return "CALL";
-		case DI:
-			return "DI";
-		case EI:
-			return "EI";
-		case POP:
-			return "POP";
-		case PUSH:
-			return "PUSH";
+		// case INC:
+		// 	return "INC";
+		// case DEC:
+		// 	return "DEC";
+		// case CALL:
+		// 	return "CALL";
+		// case DI:
+		// 	return "DI";
+		// case EI:
+		// 	return "EI";
+		// case POP:
+		// 	return "POP";
+		// case PUSH:
+		// 	return "PUSH";
 	}
 }

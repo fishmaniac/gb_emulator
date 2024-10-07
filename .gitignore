@@ -57,3 +57,7 @@ vgcore.*
 #CMake
 build
 compile_commands.json
+
+#Clang
+.cache
+asm/*.gb

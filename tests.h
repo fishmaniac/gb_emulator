@@ -16,7 +16,7 @@ void run_print_binary_tests();
 void run_reg_target_tests();
 
 void run_register_set_get();
-void run_flag_register_permutations();
+void run_register_flag_permutations();
 void run_register_flag();
 void run_register_tests();
 
