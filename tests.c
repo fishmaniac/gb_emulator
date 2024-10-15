@@ -608,7 +608,7 @@ void run_stack_tests() {
 		init_cpu(&cpu);
 		set_sp_addr(&cpu, 0x100);
 
-		int expect = 0x1234 + 0xAF20 + 0x9843 + 0x9292 + 0x0003 + 0x3331 + 0x00B4;
+		int expect = 0x1234 + 0xAF20 + 0x9843 + 0x9292 + 0x0003 + 0xCB50 + 0x3331 + 0x00B4;
 		int sum = 0;
 
 		set_reg_bc(&cpu.reg, 0x1234);
@@ -621,6 +621,9 @@ void run_stack_tests() {
 		push_r16(&cpu, BC);
 		set_reg_de(&cpu.reg, 0x0003);
 		push_r16(&cpu, DE);
+		set_reg_af(&cpu.reg, 0xCB50);
+		push_n16(&cpu, get_reg_af(&cpu.reg));
+		sum += pop_n16(&cpu);
 
 		set_reg_bc(&cpu.reg, 0x3331);
 		push_r16(&cpu, BC);
@@ -641,7 +644,7 @@ void run_stack_tests() {
 
 		test_log(
 			sum == expect,
-			"Stack BC, DE, HL"
+			"Stack BC, DE, HL, AF"
 		);
 	}
 

@@ -3,33 +3,29 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "constants.h"
 #include "memory.h"
 
 typedef struct FlagRegister_t {
-	bool bit_0;
-	bool bit_1;
-	bool bit_2;
-	bool bit_3;
 	bool carry;		// C
 	bool half_carry;	// H
 	bool subtract;		// N
 	bool zero;		// Z
+	bool bit_0;
+	bool bit_1;
+	bool bit_2;
+	bool bit_3;
 } FlagRegister;
-
-uint8_t get_reg_f(FlagRegister *flags);
-void set_reg_f(FlagRegister *flags, uint8_t val);
 
 #pragma pack(1)
 typedef struct Register_t {
-	uint8_t a;
-	FlagRegister f;
 	uint8_t c;
 	uint8_t b;
 	uint8_t e;
 	uint8_t d;
 	uint8_t l;
 	uint8_t h;
+	uint8_t a;
+	FlagRegister f;
 } Register;
 
 typedef union WordUnion_t {
@@ -42,11 +38,19 @@ typedef struct CPU_t {
 	MemoryMap map;
 	uint16_t pc;
 	uint16_t sp;
-	bool ime;	// Interrupt Master Enable Flag	TODO: Set to false when ROM loaded
+	bool ime;
+	bool ime_next;
 	bool halt;
 } CPU;
 
 void init_cpu(CPU *cpu);
+
+uint16_t read_immediate_16(CPU *cpu);
+uint8_t read_immediate_8(CPU *cpu);
+int8_t read_signed_immediate_8(CPU *cpu);
+
+uint8_t get_reg_f(FlagRegister *flags);
+void set_reg_f(FlagRegister *flags, uint8_t val);
 
 uint16_t get_sp_addr(CPU *cpu);
 uint8_t *get_sp_mem(CPU *cpu);
@@ -104,8 +108,8 @@ typedef enum {
 	SBC,
 	AND,
 	// ANDHL,	// temp removed (at AND + 6)
-	OR,
 	XOR,
+	OR,
 	CP,
 	// INC,
 	// DEC,
@@ -143,9 +147,10 @@ void and(CPU *cpu, uint8_t val);
 void or(CPU *cpu, uint8_t val);
 void xor(CPU *cpu, uint8_t val);
 void cp(CPU *cpu, uint8_t val);
-void inc(CPU *cpu, uint8_t val);
-void dec(CPU *cpu, uint8_t val);
-void call(CPU *cpu, int n);
+void inc(CPU *cpu);
+void dec(CPU *cpu);
+void call_n16(CPU *cpu, uint16_t n);
+void call_a16(CPU *cpu);
 void di(CPU *cpu);
 void ei(CPU *cpu);
 void jp(CPU *cpu, uint16_t addr);
@@ -157,7 +162,8 @@ Target_8 decode_register_8_pairs(int reg, bool lower);
 Target_8 decode_register_8(int reg);
 Target_16 decode_register_16(int reg);
 
-void execute_instruction(CPU *cpu, Instruction opcode, Target_8 target_8, Target_16 target_16, int bit_index, int address);
+int execute_instruction(CPU *cpu);
+void execute_math_instruction(CPU *cpu, Instruction opcode, Target_8 target_8, Target_16 target_16, int bit_index, int address);
 
 char *instruction_string(Instruction opcode);
 

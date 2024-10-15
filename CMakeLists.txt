@@ -19,6 +19,7 @@ add_executable(gb_emulator
     memory.c
     tests.c
     window.c
+    timer.c
 )
 
 target_link_libraries(gb_emulator m SDL2)
