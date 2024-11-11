@@ -78,7 +78,7 @@ void test_log(bool test, char *func) {
 
 	free(str);
 }
-void run_print_binary_tests() {
+void run_print_binary_tests(void) {
 	char *v = print_binary(0);
 	test_log(
 		strcmp(v, "0") == 0,
@@ -128,7 +128,7 @@ void run_print_binary_tests() {
 	free(v);
 }
 // 16 bit reg is stored as little endian
-void run_reg_target_tests() {
+void run_reg_target_tests(void) {
 	{
 		CPU cpu;
 		uint16_t *_16 = get_target_reg_16(&cpu, BC);
@@ -182,7 +182,7 @@ void run_reg_target_tests() {
 	}
 }
 
-void run_register_set_get() {
+void run_register_set_get(void) {
 	// Register test_reg;
 	// int v;
 	// int count = 0;
@@ -234,7 +234,7 @@ void run_register_set_get() {
 
 
 }
-void run_register_flag_permutations() {
+void run_register_flag_permutations(void) {
 	Register test_reg;
 	int count = 0;
 	int expect = 16; // 15 + 1
@@ -249,7 +249,7 @@ void run_register_flag_permutations() {
 		"flag_register_permutations"
 	);
 }
-void run_register_flag() {
+void run_register_flag(void) {
 	Register test_reg;
 	int count = 0;
 	int expect = 16;
@@ -267,13 +267,13 @@ void run_register_flag() {
 		"get_reg_af"
 	);
 }
-void run_register_tests() {
+void run_register_tests(void) {
 	run_register_set_get();
 	run_register_flag();
 	run_register_flag_permutations();
 }
 // Test load
-// void run_instruction_ld() {
+// void run_instruction_ld(void) {
 // 	CPU cpu;
 // 	bool pass;
 // 	int expect = 15;
@@ -328,7 +328,7 @@ void run_register_tests() {
 // 	);
 // }
 // Test 8 bit add to A register with carry
-void run_instruction_adc() {
+void run_instruction_adc(void) {
 	CPU cpu;
 	bool pass;
 
@@ -393,7 +393,7 @@ void run_instruction_adc() {
 	);
 }
 // Test 8 bit add to A register
-void run_instruction_add() {
+void run_instruction_add(void) {
 	CPU cpu;
 	bool pass;
 
@@ -453,7 +453,7 @@ void run_instruction_add() {
 		"ADD --- 143 + 1 == 144"
 	);
 }
-void run_instruction_addhl() {
+void run_instruction_addhl(void) {
 	CPU cpu;
 	bool pass;
 
@@ -466,7 +466,7 @@ void run_instruction_addhl() {
 		"ADDHL --- "
 	);
 }
-void run_instruction_addsp() {
+void run_instruction_addsp(void) {
 	CPU cpu;
 	bool pass;
 
@@ -477,7 +477,7 @@ void run_instruction_addsp() {
 		"ADDSP --- "
 	);
 }
-void run_instruction_and() {
+void run_instruction_and(void) {
 	CPU cpu;
 	bool pass;
 
@@ -488,7 +488,7 @@ void run_instruction_and() {
 		"AND --- "
 	);
 }
-void run_instruction_andhl() {
+void run_instruction_andhl(void) {
 	CPU cpu;
 	bool pass;
 
@@ -499,7 +499,7 @@ void run_instruction_andhl() {
 		"ANDHL --- "
 	);
 }
-void run_instruction_bit() {
+void run_instruction_bit(void) {
 	CPU cpu;
 	bool pass;
 
@@ -510,7 +510,7 @@ void run_instruction_bit() {
 		"BIT --- "
 	);
 }
-void run_instruction_call() {
+void run_instruction_call(void) {
 	CPU cpu;
 	bool pass;
 
@@ -521,7 +521,7 @@ void run_instruction_call() {
 		"CALL --- "
 	);
 }
-void run_instruction_di() {
+void run_instruction_di(void) {
 	CPU cpu;
 	bool pass;
 
@@ -532,7 +532,7 @@ void run_instruction_di() {
 		"DI --- "
 	);
 }
-void run_instruction_ei() {
+void run_instruction_ei(void) {
 	CPU cpu;
 	bool pass;
 
@@ -543,7 +543,7 @@ void run_instruction_ei() {
 		"EI --- "
 	);
 }
-void run_instruction_tests() {
+void run_instruction_tests(void) {
 	// run_instruction_ld();
 	run_instruction_add();
 	run_instruction_adc();
@@ -556,7 +556,7 @@ void run_instruction_tests() {
 	run_instruction_di();
 	run_instruction_ei();
 }
-void run_memory_tests() {
+void run_memory_tests(void) {
 	CPU cpu;
 	int count = 0;
 	int count_expect = MEMORY_SIZE;
@@ -584,7 +584,7 @@ void run_memory_tests() {
 	);
 	free(str);
 }
-void run_stack_tests() {
+void run_stack_tests(void) {
 	{	
 		CPU cpu;
 		init_cpu(&cpu);
@@ -649,10 +649,10 @@ void run_stack_tests() {
 	}
 
 }
-void run_rom_tests() {
+void run_rom_tests(void) {
 
 }
-void run_all_tests() {
+void run_all_tests(void) {
 	printf("-----------------------------------------------------------------------------------------------------------------------\n");
 	printf("TESTS BEGIN: %d\n", TESTS);
 	printf("Print Binary Tests:\n");

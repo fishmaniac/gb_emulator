@@ -3,11 +3,14 @@
 #include "memory.h"
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 Interrupt get_requested_interrupt(MemoryMap *map) {
 	uint8_t flag = get_interrupt_flag(map);
 
 	if (flag & VBLANK_BIT) {
+		printf("!!VBLANK INTERRUPT!!");
+		exit(-3);
 		return VBlank;
 	}
 	else if ((flag & LCD_BIT) >> LCD_BIT_POS) {
@@ -27,8 +30,8 @@ Interrupt get_requested_interrupt(MemoryMap *map) {
 	}
 }
 
-void handle_interrupt(CPU *cpu) {
-	if (!cpu->ime) return;
+Interrupt handle_interrupt(CPU *cpu) {
+	if (!cpu->ime) return -1;
 
 	Interrupt interrupt = get_requested_interrupt(&cpu->map);
 	uint8_t flag = get_interrupt_flag(&cpu->map);
@@ -37,29 +40,25 @@ void handle_interrupt(CPU *cpu) {
 		case VBlank:
 			flag &= ~(1 << VBLANK_BIT_POS);
 			call_n16(cpu, VBLANK_HANDLER);
-			break;
 		case STAT:
 			flag &= ~(1 << LCD_BIT_POS);
 			call_n16(cpu, STAT_HANDLER);
-			break;
 		case Timer:
 			flag &= ~(1 << TIMER_BIT_POS);
 			call_n16(cpu, TIMER_HANDLER);
-			break;
 		case Serial:
 			flag &= ~(1 << SERIAL_BIT_POS);
 			call_n16(cpu, SERIAL_HANDLER);
-			break;
 		case Joypad:
 			flag &= ~(1 << JOYPAD_BIT_POS);
 			call_n16(cpu, JOYPAD_HANDLER);
-			break;
 	}
 
 	write_memory(&cpu->map, IF_ADDR, flag);
 
 	cpu->ime = false;
 
+	return interrupt;
 }
 void request_interrupt(MemoryMap *map, Interrupt interrupt) {
 	uint8_t flag = get_interrupt_flag(map);
@@ -76,8 +75,10 @@ void request_interrupt(MemoryMap *map, Interrupt interrupt) {
 			break;
 		case Serial:
 			flag |= SERIAL_BIT;
+			break;
 		case Joypad:
 			flag |= JOYPAD_BIT;
+			break;
 	}
 	write_memory(map, IF_ADDR, flag);
 }

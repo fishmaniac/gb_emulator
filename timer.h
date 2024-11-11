@@ -10,6 +10,8 @@ static const int DIV_FREQ = 16384;			// 16384 Hz
 static const uint16_t DIV_ADDR = 0xFF04;
 
 static const int DIV_CYCLE_INTERVAL = CPU_FREQ / DIV_FREQ;
+// Not sure about this
+static const int CYCLES_PER_SCANLINE = 456;
 
 static const int TIMA_00_FREQ = 4096;
 static const int TIMA_01_FREQ = 262144;
@@ -51,7 +53,7 @@ typedef enum {
 } Interrupt;
 
 Interrupt get_requested_interrupt(MemoryMap *map);
-void handle_interrupt(CPU *cpu);
+Interrupt handle_interrupt(CPU *cpu);
 void request_interrupt(MemoryMap *map, Interrupt interrupt);
 uint8_t get_interrupt_flag(MemoryMap *map);
 uint8_t get_tima_modulo(MemoryMap *map);

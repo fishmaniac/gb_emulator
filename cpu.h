@@ -102,23 +102,48 @@ void decrement_reg_16(CPU *cpu, Target_16 target);
 typedef enum {
 	ADD,
 	ADC,
-	// ADDHL,	// temp removed (at ADD + 6)
-	// ADDSP,	// temp removed (at 0xE0 + 8) ??
 	SUB,
 	SBC,
 	AND,
-	// ANDHL,	// temp removed (at AND + 6)
 	XOR,
 	OR,
 	CP,
-	// INC,
-	// DEC,
-	// CALL,
-	// DI,
-	// EI,
-	// POP,
-	// PUSH,
-} Instruction;
+} MathInstruction;
+
+typedef enum {
+	RLC,
+	RRC,
+	RL,
+	RR,
+	SLA,
+	SRA,
+	SWAP,
+	SRL,
+	BIT0,
+	BIT1,
+	BIT2,
+	BIT3,
+	BIT4,
+	BIT5,
+	BIT6,
+	BIT7,
+	RES0,
+	RES1,
+	RES2,
+	RES3,
+	RES4,
+	RES5,
+	RES6,
+	RES7,
+	SET0,
+	SET1,
+	SET2,
+	SET3,
+	SET4,
+	SET5,
+	SET6,
+	SET7,
+} CBInstruction;
 
 
 // typedef struct {
@@ -154,6 +179,13 @@ void call_a16(CPU *cpu);
 void di(CPU *cpu);
 void ei(CPU *cpu);
 void jp(CPU *cpu, uint16_t addr);
+void daa(CPU *cpu);
+void rlc(CPU *cpu, Target_8 target);
+void rrc(CPU *cpu, Target_8 target);
+void rl(CPU *cpu, Target_8 target);
+void rr(CPU *cpu, Target_8 target);
+void swap(CPU *cpu, Target_8 target);
+void bit(CPU *cpu, Target_8 target, int bit);
 
 uint8_t *get_target_reg_8(CPU *cpu, Target_8 target);
 uint16_t *get_target_reg_16(CPU *cpu, Target_16 target);
@@ -163,8 +195,9 @@ Target_8 decode_register_8(int reg);
 Target_16 decode_register_16(int reg);
 
 int execute_instruction(CPU *cpu);
-void execute_math_instruction(CPU *cpu, Instruction opcode, Target_8 target_8, Target_16 target_16, int bit_index, int address);
+void execute_math_instruction(CPU *cpu, MathInstruction opcode, Target_8 target_8);
+void execute_cb_instruction(CPU *cpu, CBInstruction opcode, Target_8 target_8);
 
-char *instruction_string(Instruction opcode);
+char *instruction_string(MathInstruction opcode);
 
 #endif	// CPU_H

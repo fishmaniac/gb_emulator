@@ -44,6 +44,8 @@ void update_tile_texture(CPU *cpu, uint32_t* pixel_ptr, uint16_t addr, int scree
 	}
 }
 void update_texture(CPU *cpu, SDL_Window *window, SDL_Renderer *renderer, SDL_Texture *texture) {
+	printf("!!ENTER UPDATE TEXTURE!!\n");
+	exit(-3);
 	void* pixels;
 	int pitch;
 	if (SDL_LockTexture(texture, NULL, &pixels, &pitch) < 0) {
@@ -54,40 +56,38 @@ void update_texture(CPU *cpu, SDL_Window *window, SDL_Renderer *renderer, SDL_Te
 		SDL_Quit();
 		return;
 	}
-	// Tile map 1: $9800-$9BFF
-	// Tile map 2: $9C00-$9FFF
+
 	uint32_t* pixel_ptr = (uint32_t*)pixels;
 
-	// tile data:
-	// 0x8000 and 0x9000
-	// tile map:
-	// 0x9800 and 0x9C00
-
+	// Get scroll values
 	uint8_t scroll_top = cpu->map.memory[0xFF42];
-	uint8_t scroll_bottom = (scroll_top + 143) % 256;
 	uint8_t scroll_left = cpu->map.memory[0xFF43];
-	uint8_t scroll_right = (scroll_left + 159) % 256;
 
-	int map_start_addr = scroll_top * 16;
+	// Adjust LY to account for scroll position
+	int ly = read_memory(&cpu->map, 0xFF44);
+	int tile_map_y = (ly + scroll_top) / 8;  // Which row of tiles to render
+	int tile_row_offset = (ly + scroll_top) % 8;  // Which row within the tile (0-7)
 
+	// Tile base addresses
 	uint16_t base_data_addr = 0x8000;
 	uint16_t base_map_addr = 0x9800;
-	int start_addr = base_map_addr + ((scroll_top / 8) * 32) + (scroll_left / 8);
-	int x, y;
-	for (y = 0; y < 18; y++) {
-		for (x = 0; x < 20; x++) {
-			uint8_t tile_index = cpu->map.memory[start_addr + y * 32 + x];
-			uint16_t tile_data_addr = base_data_addr + (tile_index * 16);
 
-			update_tile_texture(cpu, pixel_ptr, tile_data_addr, 8 * x, 8 * y);
-		}
+	// Starting address in tile map
+	int start_addr = base_map_addr + ((scroll_top / 8) * 32) + (scroll_left / 8);
+
+	// Only render the scanline corresponding to LY
+	for (int x = 0; x < 20; x++) {  // 20 tiles horizontally
+		uint8_t tile_index = cpu->map.memory[start_addr + tile_map_y * 32 + x];
+		uint16_t tile_data_addr = base_data_addr + (tile_index * 16);
+
+		// Update the tile for the current scanline (LY)
+		update_tile_texture(cpu, pixel_ptr, tile_data_addr, 8 * x, tile_row_offset);
 	}
 
 	SDL_UnlockTexture(texture);
 	SDL_RenderClear(renderer);
 	SDL_RenderCopy(renderer, texture, NULL, NULL);
-	SDL_RenderPresent(renderer);
-}
+	SDL_RenderPresent(renderer);}
 void update_tile_data_texture(CPU *cpu, SDL_Window *window, SDL_Renderer *renderer, SDL_Texture *texture) {
 	void* pixels;
 	int pitch;

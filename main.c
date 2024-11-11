@@ -111,7 +111,7 @@ int main(int argc, char *argv[]) {
 	SDL_Delay(500);
 
 	read_rom(&cpu.map, "asm/tetris.gb");
-	load_rom(&cpu.map, 0);
+	// load_rom(&cpu.map, 0);
 	// cpu.reg.a = 0;
 	// cpu.reg.b = 5;
 	// cpu.reg.h = 3;
@@ -127,26 +127,32 @@ int main(int argc, char *argv[]) {
 	int div_cycle_count = 0;
 	int tima_cycle_count = 0;
 
-	static const double FPS = 120;
+	static const double FPS = 60;
 	static const double TARGET_FRAME_TIME = 1000.0 / FPS;
 
 	static const int CYCLES_PER_FRAME = CPU_FREQ / FPS;
 	int cycles_this_frame = 0;
 
+
+	// Checked in tetris at 0x282A	cp a, 91
+	cpu.map.memory[0xFF44] = 0x91; // Set LCD Y to 145 (within VBlank period)
+
+	char temp = 0;
 	while (!cpu.halt) {
+		// scanf("%c", &temp);
 		get_input(&cpu);
 
-		uint64_t frame_start_time = SDL_GetPerformanceCounter();
+		// uint64_t frame_start_time = SDL_GetPerformanceCounter();
 
 		if (cpu.ime_next) {
 			cpu.ime = true;
 			cpu.ime_next = false;
 		}
-		handle_interrupt(&cpu);
 		execute_cycles = execute_instruction(&cpu);
 		execute_cycles = 6;
 		div_cycle_count += execute_cycles;
 		tima_cycle_count += execute_cycles;
+		cycles_this_frame += execute_cycles;
 
 		if (div_cycle_count >= DIV_CYCLE_INTERVAL) {
 			cpu.map.memory[DIV_ADDR]++;
@@ -160,17 +166,25 @@ int main(int argc, char *argv[]) {
 		}
 		if (cycles_this_frame >= CYCLES_PER_FRAME) {
 			request_interrupt(&cpu.map, VBlank);
-			break;
+			cycles_this_frame -= CYCLES_PER_FRAME;
 		}
-		update_tile_data_texture(&cpu, window, renderer, texture);
+		// TODO: Fix this...
+		int ly = read_memory(&cpu.map, 0xFF44);
+		if (ly < 153) write_memory(&cpu.map, 0xFF44, ly + 1);
+		if (ly == 144) {
+			if (handle_interrupt(&cpu) == VBlank) {
+				update_tile_data_texture(&cpu, window, renderer, texture);
+			}
+		}
+		if (ly >= 153) write_memory(&cpu.map, 0xFF44, 0);
 		render(renderer, texture);
 
-		uint64_t frame_end_time = SDL_GetPerformanceCounter();
-		double elapsed_time = (double)(frame_end_time - frame_start_time) / SDL_GetPerformanceFrequency() * 1000.0;
-
-		if (elapsed_time < TARGET_FRAME_TIME) {
-			// SDL_Delay((uint32_t)(TARGET_FRAME_TIME - elapsed_time));
-		}
+		// uint64_t frame_end_time = SDL_GetPerformanceCounter();
+		// double elapsed_time = (double)(frame_end_time - frame_start_time) / SDL_GetPerformanceFrequency() * 1000.0;
+		//
+		// if (elapsed_time < TARGET_FRAME_TIME) {
+		// 	SDL_Delay((uint32_t)(TARGET_FRAME_TIME - elapsed_time));
+		// }
 	}
 
 

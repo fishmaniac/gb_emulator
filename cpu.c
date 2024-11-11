@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
+#include <time.h>
 
 static const uint8_t ZERO_FLAG_BIT_POS = 7;
 static const uint8_t SUBTRACT_FLAG_BIT_POS = 6;
@@ -357,21 +357,17 @@ void and(CPU *cpu, uint8_t val) {
 	cpu->reg.a = and;
 }
 void or(CPU *cpu, uint8_t val) {
-	uint8_t or = cpu->reg.a & val;
+	uint8_t or = cpu->reg.a | val;
 
 	cpu->reg.f.zero = or == 0;
 	cpu->reg.f.subtract = false;
 	cpu->reg.f.carry = false;
-	cpu->reg.f.half_carry =
-		((cpu->reg.a & UINT4_MAX) 
-		| (val & UINT4_MAX)) 
-		> UINT4_MAX;
+	cpu->reg.f.half_carry = false;
 
 	cpu->reg.a = or;
 }
 void xor(CPU *cpu, uint8_t val) {
 	uint8_t xor = cpu->reg.a ^ val;
-	printf("XOR: a: 0x%x ^ val: 0x%x = 0x%x\n", cpu->reg.a, val, xor);
 
 	cpu->reg.f.zero = xor == 0;
 	cpu->reg.f.subtract = false;
@@ -383,14 +379,15 @@ void xor(CPU *cpu, uint8_t val) {
 void cp(CPU *cpu, uint8_t val) {
 	bool cp = cpu->reg.a == val;
 
-	cpu->reg.f.zero = cp == 0;
+	cpu->reg.f.zero = cp;
 	cpu->reg.f.subtract = false;
 	// TODO: Carry flags set on for no borrow
 	// Half carry set on for no borrow from bit 4
 	cpu->reg.f.carry = false;
 	cpu->reg.f.half_carry = false;
 
-	cpu->reg.a = cp;
+	// Reg A is unaffected?
+	// cpu->reg.a = cp;
 }
 void inc(CPU *cpu) {
 	uint8_t inc = cpu->reg.a + 1;
@@ -404,27 +401,17 @@ void inc(CPU *cpu) {
 	cpu->reg.a = inc;
 }
 void dec(CPU *cpu) {
-	uint8_t inc = cpu->reg.a - 1;
+	uint8_t dec = cpu->reg.a - 1;
 
-	cpu->reg.f.zero = inc == 0;
+	cpu->reg.f.zero = dec == 0;
 	cpu->reg.f.subtract = true;
 	// Carry not affected
 	// TODO: Half carry set on no borrow from bit 4
 	cpu->reg.f.half_carry = false;
 
-	cpu->reg.a = inc;
+	cpu->reg.a = dec;
 }
 
-// TODO 16 bit
-// Test bit in register val, set zero flag accordingly
-// bit is 3 bits (0-7)
-void bit(CPU *cpu, uint8_t val, int bit) {
-	cpu->reg.f.zero = ((val >> bit) & 1) == 0;
-	cpu->reg.f.subtract = false;
-	// Carry not affecteed
-	// TODO half carry
-	cpu->reg.f.half_carry = false;
-}
 // CALL, n16
 void call_n16(CPU *cpu, uint16_t n) {
 	push_n16(cpu, cpu->pc);
@@ -448,7 +435,6 @@ void ei(CPU *cpu) {
 void jp(CPU *cpu, uint16_t addr) {
 	cpu->pc = addr;
 }
-
 void daa(CPU *cpu) {
 	bool carry = false;
 	if (!cpu->reg.f.subtract) {
@@ -477,10 +463,81 @@ void daa(CPU *cpu) {
 	cpu->reg.f.half_carry = 0;
 	cpu->reg.f.carry = carry;
 }
+void rlc(CPU *cpu, Target_8 target) {
+	uint8_t reg = *get_target_reg_8(cpu, target);
+	if (reg == 0) cpu->reg.f.carry = false;
+	else cpu->reg.f.carry = cpu->reg.a >> 7;
+
+	uint8_t val = cpu->reg.a << reg;
+	cpu->reg.f.zero = val == 0;
+	cpu->reg.f.half_carry = false;
+	cpu->reg.f.subtract = false;
+
+	cpu->reg.a = val;
+
+}
+void rrc(CPU *cpu, Target_8 target) {
+	uint8_t reg = *get_target_reg_8(cpu, target);
+	if (reg == 0) cpu->reg.f.carry = false;
+	else cpu->reg.f.carry = cpu->reg.a & 0x1;
+
+	uint8_t val = cpu->reg.a << reg;
+	cpu->reg.f.zero = val == 0;
+	cpu->reg.f.half_carry = false;
+	cpu->reg.f.subtract = false;
+
+	cpu->reg.a = val;
+}
+void rl(CPU *cpu, Target_8 target) {
+	uint8_t bit_7 = cpu->reg.a >> 7;
+
+	uint8_t reg = *get_target_reg_8(cpu, target);
+	if (reg == 0) cpu->reg.f.carry = false;
+	else cpu->reg.f.carry = cpu->reg.a >> 7;
+
+	uint8_t val = cpu->reg.a << reg;
+	val |= bit_7 << 7;
+	cpu->reg.f.zero = val == 0;
+	cpu->reg.f.half_carry = false;
+	cpu->reg.f.subtract = false;
+
+	cpu->reg.a = val;
+}
+void rr(CPU *cpu, Target_8 target) {
+	uint8_t bit_0 = cpu->reg.a & 0x1;
+
+	uint8_t reg = *get_target_reg_8(cpu, target);
+	if (reg == 0) cpu->reg.f.carry = false;
+	else cpu->reg.f.carry = cpu->reg.a & 0x1;
+
+	uint8_t val = cpu->reg.a << reg;
+	val |= bit_0;
+	cpu->reg.f.zero = val == 0;
+	cpu->reg.f.half_carry = false;
+	cpu->reg.f.subtract = false;
+
+	cpu->reg.a = val;
+}
+void swap(CPU *cpu, Target_8 target) {
+	uint8_t *reg = get_target_reg_8(cpu, target);
+	uint8_t left = (*reg) >> 4;
+	uint8_t right = ((*reg) & 0xF) << 4;
+	*reg = left | right;
+}
+
+// Test bit in register val, set zero flag accordingly
+// bit is 3 bits (0-7)
+void bit(CPU *cpu, Target_8 target, int bit) {
+	uint8_t val = *get_target_reg_8(cpu, target);
+	cpu->reg.f.zero = ((val >> bit) & 1) == 0;
+	cpu->reg.f.subtract = false;
+	// Carry not affecteed
+	// TODO half carry
+	cpu->reg.f.half_carry = false;
+}
+
 
 // Get 8 bit register
-// TODO get 16 bit register
-// TODO get flag register
 uint8_t *get_target_reg_8(CPU *cpu, Target_8 target) {
 	switch (target) {
 		case A:
@@ -595,29 +652,311 @@ Target_16 decode_register_16(int reg) {
 			return -1;
 	}
 }
+void execute_cb_instruction(CPU *cpu, CBInstruction instruction, Target_8 target) {
+	printf("Executing CB: opcode: %d, target: %d\n", instruction, target);
+	// TODO: Decode opcode to instruction
+	// Sets of 2 instructions per 15 (opcode & 0xF0) values
+	// if ((opcode & 0xF) > 0x7) opcode++;
+	if ((instruction & 0xF) == 0x6 || (instruction & 0xF) == 0xE) {
+		printf("[ERROR] - Unimplemented 0xCB, 0xX6 and 0xXE = 0x%x\n", instruction);
+		exit(3);
+	}
+	else {
+		switch (instruction) {
+			case RLC:
+				rlc(cpu, target);
+				break;
+			case RRC:
+				rrc(cpu, target);
+				break;
+			case RL:
+				rl(cpu, target);
+				break;
+			case RR:
+				rr(cpu, target);
+				break;
+			case SLA:
+				printf("[ERROR] - Unimplemented 0xCB SLA - Target: %d\n", target);
+				// sla(cpu, target);
+				break;
+			case SRA:
+				printf("[ERROR] - Unimplemented 0xCB SRA - Target: %d\n", target);
+				break;
+			case SWAP:
+				swap(cpu, target);
+				break;
+			case SRL:
+				printf("[ERROR] - Unimplemented 0xCB SRL - Target: %d\n", target);
+				// srl(cpu, target);
+				break;
+			case BIT0:
+				bit(cpu, target, 0);
+				break;
+			case BIT1:
+				bit(cpu, target, 1);
+				break;
+			case BIT2:
+				bit(cpu, target, 2);
+				break;
+			case BIT3:
+				bit(cpu, target, 3);
+				break;
+			case BIT4:
+				bit(cpu, target, 4);
+				break;
+			case BIT5:
+				bit(cpu, target, 5);
+				break;
+			case BIT6:
+				bit(cpu, target, 6);
+				break;
+			case BIT7:
+				bit(cpu, target, 7);
+				break;
+			case RES0:
+				// break;
+			case RES1:
+				// break;
+			case RES2:
+				// break;
+			case RES3:
+				// break;
+			case RES4:
+				// break;
+			case RES5:
+				// break;
+			case RES6:
+				// break;
+			case RES7:
+				printf("[ERROR] - Unimplemented 0xCB RES - Target: %d\n", target);
+				break;
+			case SET0:
+				// break;
+			case SET1:
+				// break;
+			case SET2:
+				// break;
+			case SET3:
+				// break;
+			case SET4:
+				// break;
+			case SET5:
+				// break;
+			case SET6:
+				// break;
+			case SET7:
+				printf("[ERROR] - Unimplemented 0xCB SET - Target: %d\n", target);
+				break;
+		}
+	}
+		// switch (opcode) {
+		// 	case 0x00: case 0x01: case 0x02: case 0x03: case 0x04: case 0x05: case 0x07:
+		// 		rlc(cpu, target_8);
+		// 		break;
+		// 	case 0x06:
+		// 		printf("[ERROR] - Unimplemented RLC HL 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0x08: case 0x09: case 0x0a: case 0x0b: case 0x0c: case 0x0d: case 0x0f:
+		// 		rrc(cpu, target_8);
+		// 		break;
+		// 	case 0x0e:
+		// 		printf("[ERROR] - Unimplemented RRC HL 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0x10: case 0x11: case 0x12: case 0x13: case 0x14: case 0x15: case 0x17:
+		// 		rl(cpu, target_8);
+		// 		break;
+		// 	case 0x16:
+		// 		printf("[ERROR] - Unimplemented RL HL 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0x18: case 0x19: case 0x1a: case 0x1b: case 0x1c: case 0x1d: case 0x1f:
+		// 		rr(cpu, target_8);
+		// 		break;
+		// 	case 0x1e:
+		// 		printf("[ERROR] - Unimplemented RR HL 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0x20: case 0x21: case 0x22: case 0x23: case 0x24: case 0x25: case 0x27:
+		// 		printf("[ERROR] - Unimplemented SLA 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0x26:
+		// 		printf("[ERROR] - Unimplemented SLA HL 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0x28: case 0x29: case 0x2a: case 0x2b: case 0x2c: case 0x2d: case 0x2e: case 0x2f:
+		// 		printf("[ERROR] - Unimplemented SRA 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0x30: case 0x31: case 0x32: case 0x33: case 0x34: case 0x35: case 0x37:
+		// 		swap(cpu, target_8);
+		// 		break;
+		// 	case 0x36:
+		// 		printf("[ERROR] - Unimplemented SWAP HL 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0x38: case 0x39: case 0x3a: case 0x3b: case 0x3c: case 0x3d: case 0x3e: case 0x3f:
+		// 		printf("[ERROR] - Unimplemented SRL 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0x40: case 0x41: case 0x42: case 0x43: case 0x44: case 0x45: case 0x46: case 0x47:
+		// 		printf("[ERROR] - Unimplemented BIT 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0x48: case 0x49: case 0x4a: case 0x4b: case 0x4c: case 0x4d: case 0x4e: case 0x4f:
+		// 		printf("[ERROR] - Unimplemented BIT 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0x50: case 0x51: case 0x52: case 0x53: case 0x54: case 0x55: case 0x56: case 0x57:
+		// 		printf("[ERROR] - Unimplemented BIT 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0x58: case 0x59: case 0x5a: case 0x5b: case 0x5c: case 0x5d: case 0x5e: case 0x5f:
+		// 		printf("[ERROR] - Unimplemented BIT 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0x60: case 0x61: case 0x62: case 0x63: case 0x64: case 0x65: case 0x66: case 0x67:
+		// 		printf("[ERROR] - Unimplemented BIT 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0x68: case 0x69: case 0x6a: case 0x6b: case 0x6c: case 0x6d: case 0x6e: case 0x6f:
+		// 		printf("[ERROR] - Unimplemented BIT 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0x70: case 0x71: case 0x72: case 0x73: case 0x74: case 0x75: case 0x76: case 0x77:
+		// 		printf("[ERROR] - Unimplemented BIT 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0x78: case 0x79: case 0x7a: case 0x7b: case 0x7c: case 0x7d: case 0x7e: case 0x7f:
+		// 		printf("[ERROR] - Unimplemented SET 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0x80: case 0x81: case 0x82: case 0x83: case 0x84: case 0x85: case 0x86: case 0x87:
+		// 		printf("[ERROR] - Unimplemented SET 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0x88: case 0x89: case 0x8a: case 0x8b: case 0x8c: case 0x8d: case 0x8e: case 0x8f:
+		// 		printf("[ERROR] - Unimplemented SET 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0x90: case 0x91: case 0x92: case 0x93: case 0x94: case 0x95: case 0x96: case 0x97:
+		// 		printf("[ERROR] - Unimplemented SET 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0x98: case 0x99: case 0x9a: case 0x9b: case 0x9c: case 0x9d: case 0x9e: case 0x9f:
+		// 		printf("[ERROR] - Unimplemented SET 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0xa0: case 0xa1: case 0xa2: case 0xa3: case 0xa4: case 0xa5: case 0xa6: case 0xa7:
+		// 		printf("[ERROR] - Unimplemented SET 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0xa8: case 0xa9: case 0xaa: case 0xab: case 0xac: case 0xad: case 0xae: case 0xaf:
+		// 		printf("[ERROR] - Unimplemented SET 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0xb0: case 0xb1: case 0xb2: case 0xb3: case 0xb4: case 0xb5: case 0xb6: case 0xb7:
+		// 		printf("[ERROR] - Unimplemented SET 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0xb8: case 0xb9: case 0xba: case 0xbb: case 0xbc: case 0xbd: case 0xbe: case 0xbf:
+		// 		printf("[ERROR] - Unimplemented SET 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0xc0: case 0xc1: case 0xc2: case 0xc3: case 0xc4: case 0xc5: case 0xc6: case 0xc7:
+		// 		printf("[ERROR] - Unimplemented SET 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0xc8: case 0xc9: case 0xca: case 0xcb: case 0xcc: case 0xcd: case 0xce: case 0xcf:
+		// 		printf("[ERROR] - Unimplemented SET 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0xd0: case 0xd1: case 0xd2: case 0xd3: case 0xd4: case 0xd5: case 0xd6: case 0xd7:
+		// 		printf("[ERROR] - Unimplemented SET 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0xd8: case 0xd9: case 0xda: case 0xdb: case 0xdc: case 0xdd: case 0xde: case 0xdf:
+		// 		printf("[ERROR] - Unimplemented SET 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0xe0: case 0xe1: case 0xe2: case 0xe3: case 0xe4: case 0xe5: case 0xe6: case 0xe7:
+		// 		printf("[ERROR] - Unimplemented SET 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0xe8: case 0xe9: case 0xea: case 0xeb: case 0xec: case 0xed: case 0xee: case 0xef:
+		// 		printf("[ERROR] - Unimplemented SET 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0xf0: case 0xf1: case 0xf2: case 0xf3: case 0xf4: case 0xf5: case 0xf6: case 0xf7:
+		// 		printf("[ERROR] - Unimplemented SET 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// 	case 0xf8: case 0xf9: case 0xfa: case 0xfb: case 0xfc: case 0xfd: case 0xfe: case 0xff:
+		// 		printf("[ERROR] - Unimplemented SET 0xCB 0x%x\n", opcode);
+		// 		exit(3);
+		// 		break;
+		// }
+}
 int execute_instruction(CPU *cpu) {
-	bool cb_prefix = false;
 	bool bit_7 = false;
 	uint8_t *dest_8 = NULL;
 	uint16_t *dest_16 = NULL;
 	uint8_t val_8 = 0;
 
 	uint8_t opcode = read_memory(&cpu->map, cpu->pc);
-	cpu->pc++;
+	if (&cpu->map.memory[cpu->pc] == NULL) {
+		printf("[ERROR] - Null operation\n");
+		exit(-4);
+	}
 
 	printf("\nPC: %d - 0x%X\tOP: 0x%x\n", cpu->pc, cpu->pc, opcode);
-	printf("FLAGS\tFz: %d, Fs: %d, Fh: %d, Fc: %d\n", cpu->reg.f.zero, cpu->reg.f.subtract, cpu->reg.f.half_carry, cpu->reg.f.carry);
-	printf("REGISTERS\tA: %d - 0x%X, B: %d - 0x%X, C: %d - 0x%X, D: %d - 0x%X, E: %d - 0x%X\n", cpu->reg.a, cpu->reg.a, cpu->reg.b, cpu->reg.b, cpu->reg.c, cpu->reg.c, cpu->reg.d, cpu->reg.d, cpu->reg.e, cpu->reg.e);
-	cpu->map.memory[0xFF44] = 0x90;
+	printf("FLAGS\tFz: %d, Fs: %d, Fh: %d, Fc: %d, IME: %d - %d, Halt: %d\n", cpu->reg.f.zero, cpu->reg.f.subtract, cpu->reg.f.half_carry, cpu->ime_next, cpu->reg.f.carry, cpu->ime, cpu->halt);
+	printf("REGISTERS_8\tA: %d - 0x%X, B: %d - 0x%X, C: %d - 0x%X, D: %d - 0x%X, E: %d - 0x%X, H: %d - 0x%X, L: %d - 0x%X\n", cpu->reg.a, cpu->reg.a, cpu->reg.b, cpu->reg.b, cpu->reg.c, cpu->reg.c, cpu->reg.d, cpu->reg.d, cpu->reg.e, cpu->reg.e, cpu->reg.h, cpu->reg.h, cpu->reg.l, cpu->reg.l);
+	printf("REGISTERS_16\tAF: %d - 0x%X, BC: %d - 0x%X, DE: %d - 0x%X, HL: %d - 0x%X\n", get_reg_af(&cpu->reg), get_reg_af(&cpu->reg), get_reg_bc(&cpu->reg), get_reg_bc(&cpu->reg), get_reg_de(&cpu->reg), get_reg_de(&cpu->reg), get_reg_hl(&cpu->reg), get_reg_hl(&cpu->reg));
+	printf("STACK TOP: 0x%X\n", cpu->map.memory[cpu->sp] | (cpu->map.memory[cpu->sp + 1] << 8));
+	printf("LY mem[0xFF44]: %d\n", cpu->map.memory[0xFF44]);
+
+	cpu->pc++;
+
+	// cpu->map.memory[0xFF44] = 0x90;
 
 	if (opcode == 0xCB) {
-		cb_prefix = true;
-		opcode = read_immediate_8(cpu);
-	}
-	
+		uint8_t opcode = read_immediate_8(cpu);
+		int src = opcode & 0x7; // Extract bits 0-2
+		int operation = (opcode >> 3) & 0x7; // Extract bits 3-5
 
-	if (cb_prefix) {
-		
+		Target_8 reg_src = decode_register_8(src);
+
+		// Convert the operation into a CBInstruction enum
+		CBInstruction instruction;
+
+		switch (operation) {
+			case 0: // RLC / RRC
+				instruction = (opcode & 0xF8) == 0x00 ? RLC : RRC;
+				break;
+			case 1: // RL / RR
+				instruction = (opcode & 0xF8) == 0x08 ? RL : RR;
+				break;
+			case 2: // SLA / SRA
+				instruction = (opcode & 0xF8) == 0x10 ? SLA : SRA;
+				break;
+			case 3: // SWAP / SRL
+				instruction = (opcode & 0xF8) == 0x18 ? SWAP : SRL;
+				break;
+		}
+
+		// Handle BIT, RES, SET operations
+		if ((opcode & 0xC0) == 0x40) { // BIT (0b01)
+			instruction = BIT0 + src; // BIT0 to BIT7
+		} else if ((opcode & 0xC0) == 0x80) { // RES (0b10)
+			instruction = RES0 + src; // RES0 to RES7
+		} else if ((opcode & 0xC0) == 0xC0) { // SET (0b11)
+			instruction = SET0 + src; // SET0 to SET7
+		}
+
+		execute_cb_instruction(cpu, instruction, reg_src);
 	}
 	else if (opcode >= 0x00 && opcode < 0x40) {
 		printf("OP: 0x00 - 0x40\n");
@@ -770,12 +1109,12 @@ int execute_instruction(CPU *cpu) {
 			// DAA
 			case 0x27:
 				daa(cpu);
-				printf("[ERROR] - Unimplemented 0x%x\n", opcode);
 				break;
 			// SCF
 			case 0x37:
-				printf("[ERROR] - Unimplemented 0x%x\n", opcode);
-				exit(2);
+				cpu->reg.f.carry = true;
+				cpu->reg.f.subtract = false;
+				cpu->reg.f.half_carry = false;
 				break;
 			// LD a16, SP 
 			case 0x08:
@@ -810,9 +1149,10 @@ int execute_instruction(CPU *cpu) {
 			// ADD HL, r16
 			case 0x09: case 0x19: case 0x29: case 0x39:
 				dest_16 = get_target_reg_16(cpu, opcode >> 4);
-				(*dest_16) += get_reg_hl(&cpu->reg);
+				set_reg_hl(&cpu->reg, get_reg_hl(&cpu->reg) + (*dest_16));
 
 				cpu->reg.f.subtract = false;
+				cpu->reg.f.zero = get_reg_hl(&cpu->reg) == 0;
 				// TODO: Set carry flags
 				// cpu->reg.f.carry;
 				// cpu->reg.f.half_carry;
@@ -891,13 +1231,13 @@ int execute_instruction(CPU *cpu) {
 				break;
 			// CPL
 			case 0x2F:
-				printf("[ERROR] - Unimplemented 0x%x\n", opcode);
-				exit(2);
+				cpu->reg.a = ~cpu->reg.a;
 				break;
 			// CCF
 			case 0x3F:
-				printf("[ERROR] - Unimplemented 0x%x\n", opcode);
-				exit(2);
+				cpu->reg.f.carry = !cpu->reg.f.carry;
+				cpu->reg.f.subtract = false;
+				cpu->reg.f.half_carry = false;
 				break;
 		}
 	}
@@ -1041,7 +1381,7 @@ int execute_instruction(CPU *cpu) {
 			int operation = (opcode >> 3) & 0x7;
 			Target_8 reg_src = decode_register_8(src);
 
-			execute_math_instruction(cpu, operation, reg_src, BC, -1, -1);
+			execute_math_instruction(cpu, operation, reg_src);
 			printf("Executed MATH: opcode: 0x%x, operation: %d, acc: %d, src: %d - %d\n", opcode, operation, cpu->reg.a, src, *get_target_reg_8(cpu, reg_src));
 		}
 	}
@@ -1123,13 +1463,13 @@ int execute_instruction(CPU *cpu) {
 					call_a16(cpu);
 				}
 				break;
-				// PUSH r16
+			// PUSH r16
 			case 0xC5: case 0xD5: case 0xE5:
 				push_r16(cpu, decode_register_16((opcode - 0xC0) >> 4));
 				break;
 			case 0xF5:
 				push_n16(cpu, get_reg_af(&cpu->reg));
-	     printf("PUSH AF: %d\n", get_reg_af(&cpu->reg));
+				printf("PUSH AF: %d\n", get_reg_af(&cpu->reg));
 				break;
 			// ADD A, n8
 			case 0xC6: 
@@ -1183,7 +1523,7 @@ int execute_instruction(CPU *cpu) {
 			case 0xE8:
 				cpu->sp += read_signed_immediate_8(cpu);
 				break;
-				// LD HL, SP + e8
+			// LD HL, SP + e8
 			case 0xF8:
 				set_reg_hl(&cpu->reg, cpu->sp + read_signed_immediate_8(cpu));
 				break;
@@ -1196,7 +1536,7 @@ int execute_instruction(CPU *cpu) {
 				jp(cpu, pop_n16(cpu));
 				cpu->ime = true;
 				break;
-				// JP HL
+			// JP HL
 			case 0xE9:
 				jp(cpu, get_reg_hl(&cpu->reg));
 				break;
@@ -1204,7 +1544,7 @@ int execute_instruction(CPU *cpu) {
 			case 0xF9:
 				cpu->sp = get_reg_hl(&cpu->reg);
 				break;
-				// JP Z, a16
+			// JP Z, a16
 			case 0xCA:
 				if (cpu->reg.f.zero) {
 					cpu->pc = read_immediate_16(cpu);
@@ -1212,8 +1552,8 @@ int execute_instruction(CPU *cpu) {
 				else {
 					cpu->pc += 2;
 				}
-					break;
-				// JP C, a16
+				break;
+			// JP C, a16
 			case 0xDA:
 				if (cpu->reg.f.carry) {
 					cpu->pc = read_immediate_16(cpu);
@@ -1221,8 +1561,8 @@ int execute_instruction(CPU *cpu) {
 				else {
 					cpu->pc += 2;
 				}
-					break;
-				// LD a16, A
+				break;
+			// LD a16, A
 			case 0xEA:
 				write_memory(&cpu->map, read_immediate_16(cpu), cpu->reg.a);
 				break;
@@ -1233,30 +1573,30 @@ int execute_instruction(CPU *cpu) {
 			// PREFIX for color gameboy opcodes
 			case 0xCB:
 				printf("REACHED 0xCB\n");
-				sleep(1);
 				printf("[ERROR] - Unimplemented 0x%x\n", opcode);
+				exit(1);
 				break;
-				// EI
+			// EI
 			case 0xFB:
 				cpu->ime_next = true;
 				break;
-				// CALL Z, a16
+			// CALL Z, a16
 			case 0xCC:
 				if (cpu->reg.f.zero) {
 					call_a16(cpu);
 				}
 				break;
-				// CALL C, a16
+			// CALL C, a16
 			case 0xDC:
 				if (cpu->reg.f.carry) {
 					call_a16(cpu);
 				}
 				break;
-				// CALL a16
+			// CALL a16
 			case 0xCD:
 				call_a16(cpu);
 				break;
-				// ADC A, n8
+			// ADC A, n8
 			case 0xCE:
 				adc(cpu, read_immediate_8(cpu));
 				break;
@@ -1299,8 +1639,6 @@ int execute_instruction(CPU *cpu) {
 				printf("[ERROR] - Unused instruction: 0x%X\n", opcode);
 				break;
 		}
-
-		printf("Executed STACK: opcode: 0x%x\n", opcode);
 	}
 	else {
 		printf("[ERROR] - Unknown instruction 0x%x\n", opcode);
@@ -1310,10 +1648,8 @@ int execute_instruction(CPU *cpu) {
 	return -1;
 }
 
-void execute_math_instruction(CPU *cpu, Instruction opcode, Target_8 target_8, Target_16 target_16, int bit_index, int address) {
+void execute_math_instruction(CPU *cpu, MathInstruction opcode, Target_8 target_8) {
 	uint8_t *target_reg_8 = get_target_reg_8(cpu, target_8);
-	uint16_t *target_reg_16 = get_target_reg_16(cpu, target_16);
-	printf("Executing instruction: %d = %s dest, src(%d - %d)\n", opcode, instruction_string(opcode), *target_reg_8, *target_reg_16);
 
 	switch (opcode) {
 		case ADD:
@@ -1371,7 +1707,7 @@ void execute_math_instruction(CPU *cpu, Instruction opcode, Target_8 target_8, T
 }
 // copy from execute_instruction then
 // f:€ý5hvbyjwv$bpbireturn "f;€ý5i"jdd0w
-char *instruction_string(Instruction opcode) {
+char *instruction_string(MathInstruction opcode) {
 	switch (opcode) {
 		case ADD:
 			return "ADD";

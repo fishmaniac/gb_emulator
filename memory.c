@@ -1,6 +1,7 @@
 #include "memory.h"
 #include "timer.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 void write_memory(MemoryMap *map, uint16_t addr, uint8_t val) {
 	switch (addr) {
@@ -11,11 +12,12 @@ void write_memory(MemoryMap *map, uint16_t addr, uint8_t val) {
 			map->memory[addr] = val;
 			break;
 	}
+	printf("WRITE MEM[0x%x] = 0x%x\n", addr, map->memory[addr]);
 }
 
 uint8_t read_memory(MemoryMap *map, uint16_t addr) {
 	// Bus bus = get_bus(address);
-
+	printf("READ MEM[0x%x] = 0x%x\n", addr, map->memory[addr]);
 	return map->memory[addr];
 }
 
@@ -54,18 +56,26 @@ void read_simple_rom(MemoryMap *map) {
 }
 
 void read_rom(MemoryMap *map, char* path) {
-	int i = 0;
 
 	FILE *rom = fopen(path, "rb");
 	if (!rom) {
-		printf("[ERROR] File %s cannot be opened", path);
+		printf("[ERROR] File %s cannot be opened\n", path);
+		exit(-2);
 	}
 
-	uint8_t byte;
-	while (fread(&byte, sizeof(uint8_t), 1, rom) && i < 131072) {
-		if (i < 524) printf("Byte: 0x%X\n", byte);
-		map->rom[i++] = byte;
-	}
+	int bytes = fread(map->memory, sizeof(uint8_t), 0x8000, rom);
+	printf("Read %d bytes from %s\n", bytes, path);
+	printf("ROM size = %d KiB\n", 32 * (1 << map->memory[0x148]));
+	printf("RAM size = %d\n", map->memory[0x149]);
+	printf("Country = %s\n", map->memory[0x14A] == 0 ? "Japan" : "Overseas only");
+	printf("License Code = %d\n", map->memory[0x14B]);
+	printf("Version = %d\n", map->memory[0x14C]);
+	// int i = 0;
+	// uint8_t byte;
+	// while (fread(&byte, sizeof(uint8_t), 1, rom) && i < 131072) {
+	// 	printf("Byte: 0x%X\n", byte);
+	// 	map->rom[i++] = byte;
+	// }
 
 	fclose(rom);
 }
